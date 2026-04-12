@@ -37,6 +37,6 @@ public class Issue {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_ay")
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 }
