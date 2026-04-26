@@ -11,6 +11,5 @@ public class ProjectDto {
     private String name;
     private LocalDateTime deadline;
     private UUID createdBy;
-    private LocalDateTime createdAt;
-
+    private long orgID;
 }

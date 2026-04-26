@@ -1,5 +1,6 @@
 package com.koda.levi.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -35,6 +36,7 @@ public class Issue {
 
     @ManyToOne
     @JoinColumn(name = "project_id", nullable = false)
+    @JsonIgnore
     private Projects projects;
 
     @Column(name = "created_at")

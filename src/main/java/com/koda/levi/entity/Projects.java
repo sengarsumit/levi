@@ -1,5 +1,6 @@
 package com.koda.levi.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -29,7 +30,7 @@ public class Projects {
     private UUID createdBy;
 
     @Column(name = "created_at")
-    private LocalDateTime createdAt;
+    private LocalDateTime createdAt=LocalDateTime.now();
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt=LocalDateTime.now();
@@ -38,6 +39,9 @@ public class Projects {
     private List<Issue> issue;
 
     @ManyToOne
-    @JoinColumn(name = "org_id", nullable = false)
+    @JoinColumn(name = "org_id")
+    @JsonIgnore
     private Organization organization;
+
+
 }
