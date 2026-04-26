@@ -2,13 +2,16 @@ package com.koda.levi.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
-
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-@Data
 @Entity
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 @Table(name = "projects")
 public class Projects {
     @Id
@@ -29,13 +32,12 @@ public class Projects {
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    private LocalDateTime updatedAt=LocalDateTime.now();
 
-    @OneToMany(mappedBy = "projects",cascade = CascadeType.ALL,orphanRemoval = true)
+    @OneToMany(mappedBy = "projects", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Issue> issue;
 
     @ManyToOne
-    @JoinColumn(name = "org_id",nullable = false)
-    private  Organization organization;
-
+    @JoinColumn(name = "org_id", nullable = false)
+    private Organization organization;
 }

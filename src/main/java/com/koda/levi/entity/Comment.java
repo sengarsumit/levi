@@ -2,12 +2,15 @@ package com.koda.levi.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
-
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Data
 @Entity
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 @Table(name = "comment")
 public class Comment {
     @Id
