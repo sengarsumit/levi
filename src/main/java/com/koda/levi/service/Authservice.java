@@ -5,9 +5,11 @@ import com.koda.levi.dto.AuthResponse;
 import com.koda.levi.dto.UserDto;
 import com.koda.levi.entity.Users;
 import com.koda.levi.exception.BadRequestException;
+import com.koda.levi.exception.ResourceNotFoundException;
 import com.koda.levi.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -44,12 +46,19 @@ public class Authservice {
     }
 
     public AuthResponse login(UserDto userDto) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        userDto.getEmail(),
-                        userDto.getPassword()
-                )
-        );
+        repo.findByEmail(userDto.getEmail())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + userDto.getEmail()));
+
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            userDto.getEmail(),
+                            userDto.getPassword()
+                    )
+            );
+        } catch (BadCredentialsException e) {
+            throw new BadRequestException("Invalid password");
+        }
 
         String token = jwtService.generateToken(userDto.getEmail());
         return new AuthResponse(token);

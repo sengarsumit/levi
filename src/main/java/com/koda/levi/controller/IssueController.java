@@ -31,6 +31,11 @@ public class IssueController {
         return ResponseEntity.ok(issueService.getAllIssues());
     }
 
+    @GetMapping("/org/{id}")
+    public ResponseEntity<List<Issue>> getIssueByOrg(@PathVariable Long id) {
+        return ResponseEntity.ok(issueService.getIssueByOrganisation(id));
+    }
+
     @GetMapping("/project/{projectId}")
     public ResponseEntity<List<Issue>> getIssuesByProjectId(@PathVariable Long projectId) {
         return ResponseEntity.ok(issueService.getIssuesByProjectId(projectId));

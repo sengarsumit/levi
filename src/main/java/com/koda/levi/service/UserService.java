@@ -2,11 +2,13 @@ package com.koda.levi.service;
 
 import com.koda.levi.dto.UserResponseDto;
 import com.koda.levi.entity.Users;
+import com.koda.levi.exception.ResourceNotFoundException;
 import com.koda.levi.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -19,6 +21,19 @@ public class UserService {
         return userRepository.findAll().stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList());
+    }
+
+    public UserResponseDto getUserById(UUID id) {
+        Users user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+        return mapToDto(user);
+    }
+
+    public void deleteUser(UUID id) {
+        if (!userRepository.existsById(id)) {
+            throw new ResourceNotFoundException("User not found with id: " + id);
+        }
+        userRepository.deleteById(id);
     }
 
     private UserResponseDto mapToDto(Users user) {

@@ -28,6 +28,9 @@ public class Issue {
     @Column(name = "status")
     private Integer status;
 
+    @Column(name = "issue_type")
+    private String issueType;
+
     @Column(name = "assigned_to")
     private UUID assignedTo;
 

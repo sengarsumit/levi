@@ -50,6 +50,9 @@ public class ProjectService {
     }
 
     public List<Projects> getProjectsByOrganization(Long orgId) {
+        if (!organizationRepository.existsById(orgId)) {
+            throw new ResourceNotFoundException("Organization not found with id: " + orgId);
+        }
         return projectRepository.findByOrganizationId(orgId);
     }
 
