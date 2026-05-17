@@ -4,10 +4,13 @@ import com.koda.levi.dto.IssueDto;
 import com.koda.levi.entity.Issue;
 import com.koda.levi.service.IssueService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/issues")
@@ -31,6 +34,14 @@ public class IssueController {
         return ResponseEntity.ok(issueService.getAllIssues());
     }
 
+    @GetMapping("/filter")
+    public ResponseEntity<Page<Issue>> getIssuesWithFilters(
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) UUID assignee,
+            Pageable pageable) {
+        return ResponseEntity.ok(issueService.getIssuesWithFilters(status, assignee, pageable));
+    }
+
     @GetMapping("/org/{id}")
     public ResponseEntity<List<Issue>> getIssueByOrg(@PathVariable Long id) {
         return ResponseEntity.ok(issueService.getIssueByOrganisation(id));
@@ -39,6 +50,16 @@ public class IssueController {
     @GetMapping("/project/{projectId}")
     public ResponseEntity<List<Issue>> getIssuesByProjectId(@PathVariable Long projectId) {
         return ResponseEntity.ok(issueService.getIssuesByProjectId(projectId));
+    }
+
+    @GetMapping("/assigned/{userId}")
+    public ResponseEntity<List<Issue>> getIssuesByAssignedUser(@PathVariable UUID userId) {
+        return ResponseEntity.ok(issueService.getIssuesByAssignedUser(userId));
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<Issue> updateIssueStatus(@PathVariable Integer id, @RequestBody Integer status) {
+        return ResponseEntity.ok(issueService.updateIssueStatus(id, status));
     }
 
     @PutMapping("/{id}")

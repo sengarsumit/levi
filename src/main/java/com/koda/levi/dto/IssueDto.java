@@ -8,7 +8,7 @@ public class IssueDto {
     private String title;
     private String description;
     private Integer status;
-    private String IssueType;
+    private String issueType;
     private UUID assignedTo;
     private UUID assignedBy;
     private Long projectId;

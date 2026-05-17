@@ -7,11 +7,17 @@ import com.koda.levi.exception.ResourceNotFoundException;
 import com.koda.levi.repository.IssueRepository;
 import com.koda.levi.repository.OrganizationRepository;
 import com.koda.levi.repository.ProjectRepository;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 @Service
@@ -64,6 +70,33 @@ public class IssueService {
         return issueRepository.findByProjectsId(projectId);
     }
 
+    public List<Issue> getIssuesByAssignedUser(UUID userId) {
+        return issueRepository.findByAssignedTo(userId);
+    }
+
+    public Page<Issue> getIssuesWithFilters(Integer status, UUID assignee, Pageable pageable) {
+        return issueRepository.findAll((Specification<Issue>) (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (status != null) {
+                predicates.add(criteriaBuilder.equal(root.get("status"), status));
+            }
+
+            if (assignee != null) {
+                predicates.add(criteriaBuilder.equal(root.get("assignedTo"), assignee));
+            }
+
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        }, pageable);
+    }
+
+    public Issue updateIssueStatus(Integer id, Integer status) {
+        Issue issue = getIssueById(id);
+        issue.setStatus(status);
+        issue.setUpdatedAt(LocalDateTime.now());
+        return issueRepository.save(issue);
+    }
+
     public Issue updateIssue(Integer id, IssueDto issueDto) {
         Issue issue = getIssueById(id);
         
@@ -73,6 +106,7 @@ public class IssueService {
         issue.setTitle(issueDto.getTitle());
         issue.setDescription(issueDto.getDescription());
         issue.setStatus(issueDto.getStatus());
+        issue.setIssueType(issueDto.getIssueType());
         issue.setAssignedTo(issueDto.getAssignedTo());
         issue.setAssignedBy(issueDto.getAssignedBy());
         issue.setProjects(project);
@@ -83,6 +117,7 @@ public class IssueService {
 
     public void deleteIssue(Integer id) {
         Issue issue = getIssueById(id);
-        issueRepository.delete(issue);
+        issue.setStatus(5);
+        issueRepository.save(issue);
     }
 }
