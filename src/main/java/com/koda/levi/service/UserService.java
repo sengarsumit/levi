@@ -39,6 +39,7 @@ public class UserService {
     private UserResponseDto mapToDto(Users user) {
         return UserResponseDto.builder()
                 .id(user.getId())
+                .systemId(user.getSystemId())
                 .name(user.getName())
                 .email(user.getEmail())
                 .role(user.getRole())

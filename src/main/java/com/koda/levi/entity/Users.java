@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 @Data
 @Entity
@@ -20,10 +21,15 @@ import java.util.UUID;
 @Builder
 @Table(name = "users")
 public class Users implements UserDetails {
+    private static final Pattern SYSTEM_ID_PATTERN = Pattern.compile("^[A-Z]+-\\d+$");
+
     @Id
     @GeneratedValue
     @Column(name = "id", columnDefinition = "BINARY(16)")
     private UUID id;
+
+    @Column(name = "system_id", nullable = false, unique = true, length = 32)
+    private String systemId;
 
     @Column(name = "name", nullable = false)
     private String name;
@@ -43,6 +49,28 @@ public class Users implements UserDetails {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @PrePersist
+    void prePersist() {
+        validateSystemId();
+        LocalDateTime now = LocalDateTime.now();
+        if (createdAt == null) {
+            createdAt = now;
+        }
+        updatedAt = now;
+    }
+
+    @PreUpdate
+    void preUpdate() {
+        validateSystemId();
+        updatedAt = LocalDateTime.now();
+    }
+
+    private void validateSystemId() {
+        if (systemId == null || !SYSTEM_ID_PATTERN.matcher(systemId).matches()) {
+            throw new IllegalArgumentException("User system_id must match prefix-number format, e.g. USR-1049");
+        }
+    }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

@@ -7,6 +7,7 @@ import com.koda.levi.exception.BadRequestException;
 import com.koda.levi.exception.ResourceNotFoundException;
 import com.koda.levi.repository.OrganizationRepository;
 import com.koda.levi.repository.ProjectRepository;
+import com.koda.levi.tenancy.TenantAccessService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -19,12 +20,16 @@ public class ProjectService {
 
     private final ProjectRepository projectRepository;
     private final OrganizationRepository organizationRepository;
+    private final TenantAccessService tenantAccessService;
 
     public Projects create(ProjectDto projectDto) {
-        Organization org = organizationRepository.findById(projectDto.getOrgID())
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: " + projectDto.getOrgID()));
+        Long tenantId = tenantAccessService.requireTenantId();
+        tenantAccessService.requireTenant(projectDto.getOrgID());
 
-        projectRepository.findByName(projectDto.getName())
+        Organization org = organizationRepository.findById(tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: " + tenantId));
+
+        projectRepository.findByNameAndOrganizationId(projectDto.getName(), tenantId)
                 .ifPresent(p -> {
                     throw new BadRequestException("Project with name " + projectDto.getName() + " already exists");
                 });
@@ -41,15 +46,17 @@ public class ProjectService {
     }
 
     public Projects getProjectById(Long id) {
-        return projectRepository.findById(id)
+        Long tenantId = tenantAccessService.requireTenantId();
+        return projectRepository.findByIdAndOrganizationId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
     }
 
     public List<Projects> getAllProjects() {
-        return projectRepository.findAll();
+        return projectRepository.findByOrganizationId(tenantAccessService.requireTenantId());
     }
 
     public List<Projects> getProjectsByOrganization(Long orgId) {
+        tenantAccessService.requireTenant(orgId);
         if (!organizationRepository.existsById(orgId)) {
             throw new ResourceNotFoundException("Organization not found with id: " + orgId);
         }
@@ -58,16 +65,18 @@ public class ProjectService {
 
     public Projects updateProject(Long id, ProjectDto projectDto) {
         Projects project = getProjectById(id);
+        Long tenantId = tenantAccessService.requireTenantId();
+        tenantAccessService.requireTenant(projectDto.getOrgID());
         
         if (!project.getName().equals(projectDto.getName())) {
-            projectRepository.findByName(projectDto.getName())
+            projectRepository.findByNameAndOrganizationId(projectDto.getName(), tenantId)
                     .ifPresent(p -> {
                         throw new BadRequestException("Project with name " + projectDto.getName() + " already exists");
                     });
         }
 
-        Organization org = organizationRepository.findById(projectDto.getOrgID())
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: " + projectDto.getOrgID()));
+        Organization org = organizationRepository.findById(tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: " + tenantId));
 
         project.setName(projectDto.getName());
         project.setDeadline(projectDto.getDeadline());

@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import org.hibernate.annotations.Filter;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -14,6 +16,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "projects")
+@Filter(name = "tenantFilter", condition = "organization_id = :tenantId")
 public class Projects {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -39,7 +42,7 @@ public class Projects {
     private List<Issue> issue;
 
     @ManyToOne
-    @JoinColumn(name = "org_id")
+    @JoinColumn(name = "organization_id", nullable = false)
     @JsonIgnore
     private Organization organization;
 

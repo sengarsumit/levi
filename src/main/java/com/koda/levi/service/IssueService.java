@@ -3,10 +3,12 @@ package com.koda.levi.service;
 import com.koda.levi.dto.IssueDto;
 import com.koda.levi.entity.Issue;
 import com.koda.levi.entity.Projects;
+import com.koda.levi.exception.BadRequestException;
 import com.koda.levi.exception.ResourceNotFoundException;
 import com.koda.levi.repository.IssueRepository;
 import com.koda.levi.repository.OrganizationRepository;
 import com.koda.levi.repository.ProjectRepository;
+import com.koda.levi.tenancy.TenantAccessService;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -27,12 +29,14 @@ public class IssueService {
     private final IssueRepository issueRepository;
     private final ProjectRepository projectRepository;
     private final OrganizationRepository organizationRepository;
+    private final TenantAccessService tenantAccessService;
 
     public Issue createIssue(IssueDto issueDto) {
-        Projects project = projectRepository.findById(issueDto.getProjectId())
+        Long tenantId = tenantAccessService.requireTenantId();
+        Projects project = projectRepository.findByIdAndOrganizationId(issueDto.getProjectId(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + issueDto.getProjectId()));
 
-        String issueType= String.valueOf(Stream.of("BUG","TASK","STORY").anyMatch(type-> type.equalsIgnoreCase(issueDto.getIssueType())));
+        String issueType = normalizeIssueType(issueDto.getIssueType());
         Issue issue = new Issue();
         issue.setTitle(issueDto.getTitle());
         issue.setDescription(issueDto.getDescription());
@@ -41,6 +45,7 @@ public class IssueService {
         issue.setAssignedTo(issueDto.getAssignedTo());
         issue.setAssignedBy(issueDto.getAssignedBy());
         issue.setProjects(project);
+        issue.setOrganization(project.getOrganization());
         issue.setCreatedAt(LocalDateTime.now());
         issue.setUpdatedAt(LocalDateTime.now());
 
@@ -48,15 +53,17 @@ public class IssueService {
     }
 
     public Issue getIssueById(Integer id) {
-        return issueRepository.findById(id)
+        Long tenantId = tenantAccessService.requireTenantId();
+        return issueRepository.findByIdAndOrganizationId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Issue not found with id: " + id));
     }
 
     public List<Issue> getAllIssues() {
-        return issueRepository.findAll();
+        return issueRepository.findByOrganizationId(tenantAccessService.requireTenantId());
     }
 
     public List<Issue> getIssueByOrganisation(long organizationId) {
+        tenantAccessService.requireTenant(organizationId);
         if (!organizationRepository.existsById(organizationId)) {
             throw new ResourceNotFoundException("Organization not found with id: " + organizationId);
         }
@@ -64,19 +71,22 @@ public class IssueService {
     }
 
     public List<Issue> getIssuesByProjectId(Long projectId) {
-        if (!projectRepository.existsById(projectId)) {
+        Long tenantId = tenantAccessService.requireTenantId();
+        if (projectRepository.findByIdAndOrganizationId(projectId, tenantId).isEmpty()) {
             throw new ResourceNotFoundException("Project not found with id: " + projectId);
         }
-        return issueRepository.findByProjectsId(projectId);
+        return issueRepository.findByProjectsIdAndOrganizationId(projectId, tenantId);
     }
 
     public List<Issue> getIssuesByAssignedUser(UUID userId) {
-        return issueRepository.findByAssignedTo(userId);
+        return issueRepository.findByAssignedToAndOrganizationId(userId, tenantAccessService.requireTenantId());
     }
 
     public Page<Issue> getIssuesWithFilters(Integer status, UUID assignee, Pageable pageable) {
+        Long tenantId = tenantAccessService.requireTenantId();
         return issueRepository.findAll((Specification<Issue>) (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(criteriaBuilder.equal(root.get("organization").get("id"), tenantId));
 
             if (status != null) {
                 predicates.add(criteriaBuilder.equal(root.get("status"), status));
@@ -99,17 +109,19 @@ public class IssueService {
 
     public Issue updateIssue(Integer id, IssueDto issueDto) {
         Issue issue = getIssueById(id);
+        Long tenantId = tenantAccessService.requireTenantId();
         
-        Projects project = projectRepository.findById(issueDto.getProjectId())
+        Projects project = projectRepository.findByIdAndOrganizationId(issueDto.getProjectId(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + issueDto.getProjectId()));
 
         issue.setTitle(issueDto.getTitle());
         issue.setDescription(issueDto.getDescription());
         issue.setStatus(issueDto.getStatus());
-        issue.setIssueType(issueDto.getIssueType());
+        issue.setIssueType(normalizeIssueType(issueDto.getIssueType()));
         issue.setAssignedTo(issueDto.getAssignedTo());
         issue.setAssignedBy(issueDto.getAssignedBy());
         issue.setProjects(project);
+        issue.setOrganization(project.getOrganization());
         issue.setUpdatedAt(LocalDateTime.now());
 
         return issueRepository.save(issue);
@@ -119,5 +131,18 @@ public class IssueService {
         Issue issue = getIssueById(id);
         issue.setStatus(5);
         issueRepository.save(issue);
+    }
+
+    private String normalizeIssueType(String issueType) {
+        if (issueType == null || issueType.isBlank()) {
+            throw new BadRequestException("Issue type is required");
+        }
+
+        String normalized = issueType.trim().toUpperCase();
+        if (Stream.of("BUG", "TASK", "STORY").noneMatch(type -> type.equals(normalized))) {
+            throw new BadRequestException("Issue type must be one of BUG, TASK, STORY");
+        }
+
+        return normalized;
     }
 }
