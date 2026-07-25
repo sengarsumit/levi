@@ -32,3 +32,10 @@ build/
 ### VS Code ###
 .vscode/
 /src/main/resources/application.yaml
+
+### Markdown & Postman ###
+*.md
+!README.md
+*postman_collection.json
+*postman_test_run.json
+*postman_environment.json

@@ -2,7 +2,7 @@ package com.koda.levi.service;
 
 import com.koda.levi.dto.ProjectDto;
 import com.koda.levi.entity.Organization;
-import com.koda.levi.entity.Projects;
+import com.koda.levi.entity.Project;
 import com.koda.levi.exception.BadRequestException;
 import com.koda.levi.exception.ResourceNotFoundException;
 import com.koda.levi.repository.OrganizationRepository;
@@ -22,7 +22,7 @@ public class ProjectService {
     private final OrganizationRepository organizationRepository;
     private final TenantAccessService tenantAccessService;
 
-    public Projects create(ProjectDto projectDto) {
+    public Project create(ProjectDto projectDto) {
         Long tenantId = tenantAccessService.requireTenantId();
         tenantAccessService.requireTenant(projectDto.getOrgID());
 
@@ -34,8 +34,25 @@ public class ProjectService {
                     throw new BadRequestException("Project with name " + projectDto.getName() + " already exists");
                 });
 
-        Projects project = new Projects();
+        Project project = new Project();
         project.setName(projectDto.getName());
+        
+        if (projectDto.getProjectKey() != null) {
+            project.setProjectKey(projectDto.getProjectKey());
+        } else {
+            project.setProjectKey("PRJ-" + java.util.UUID.randomUUID().toString().substring(0, 6).toUpperCase());
+        }
+        
+        if (projectDto.getDescription() != null) {
+            project.setDescription(projectDto.getDescription());
+        }
+        
+        if (projectDto.getStatus() != null) {
+            project.setStatus(projectDto.getStatus());
+        } else {
+            project.setStatus(com.koda.levi.entity.ProjectStatus.ACTIVE);
+        }
+        
         project.setDeadline(projectDto.getDeadline());
         project.setCreatedBy(projectDto.getCreatedBy());
         project.setOrganization(org);
@@ -45,17 +62,17 @@ public class ProjectService {
         return projectRepository.save(project);
     }
 
-    public Projects getProjectById(Long id) {
+    public Project getProjectById(Long id) {
         Long tenantId = tenantAccessService.requireTenantId();
         return projectRepository.findByIdAndOrganizationId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
     }
 
-    public List<Projects> getAllProjects() {
+    public List<Project> getAllProjects() {
         return projectRepository.findByOrganizationId(tenantAccessService.requireTenantId());
     }
 
-    public List<Projects> getProjectsByOrganization(Long orgId) {
+    public List<Project> getProjectsByOrganization(Long orgId) {
         tenantAccessService.requireTenant(orgId);
         if (!organizationRepository.existsById(orgId)) {
             throw new ResourceNotFoundException("Organization not found with id: " + orgId);
@@ -63,8 +80,8 @@ public class ProjectService {
         return projectRepository.findByOrganizationId(orgId);
     }
 
-    public Projects updateProject(Long id, ProjectDto projectDto) {
-        Projects project = getProjectById(id);
+    public Project updateProject(Long id, ProjectDto projectDto) {
+        Project project = getProjectById(id);
         Long tenantId = tenantAccessService.requireTenantId();
         tenantAccessService.requireTenant(projectDto.getOrgID());
         
@@ -79,6 +96,12 @@ public class ProjectService {
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: " + tenantId));
 
         project.setName(projectDto.getName());
+        if (projectDto.getDescription() != null) {
+            project.setDescription(projectDto.getDescription());
+        }
+        if (projectDto.getStatus() != null) {
+            project.setStatus(projectDto.getStatus());
+        }
         project.setDeadline(projectDto.getDeadline());
         project.setOrganization(org);
         project.setUpdatedAt(LocalDateTime.now());
@@ -87,7 +110,7 @@ public class ProjectService {
     }
 
     public void deleteProject(Long id) {
-        Projects project = getProjectById(id);
+        Project project = getProjectById(id);
         projectRepository.delete(project);
     }
 }

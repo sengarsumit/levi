@@ -2,7 +2,7 @@ package com.koda.levi.service;
 
 import com.koda.levi.dto.IssueDto;
 import com.koda.levi.entity.Issue;
-import com.koda.levi.entity.Projects;
+import com.koda.levi.entity.Project;
 import com.koda.levi.exception.BadRequestException;
 import com.koda.levi.exception.ResourceNotFoundException;
 import com.koda.levi.repository.IssueRepository;
@@ -33,7 +33,7 @@ public class IssueService {
 
     public Issue createIssue(IssueDto issueDto) {
         Long tenantId = tenantAccessService.requireTenantId();
-        Projects project = projectRepository.findByIdAndOrganizationId(issueDto.getProjectId(), tenantId)
+        Project project = projectRepository.findByIdAndOrganizationId(issueDto.getProjectId(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + issueDto.getProjectId()));
 
         String issueType = normalizeIssueType(issueDto.getIssueType());
@@ -44,7 +44,7 @@ public class IssueService {
         issue.setIssueType(issueType);
         issue.setAssignedTo(issueDto.getAssignedTo());
         issue.setAssignedBy(issueDto.getAssignedBy());
-        issue.setProjects(project);
+        issue.setProject(project);
         issue.setOrganization(project.getOrganization());
         issue.setCreatedAt(LocalDateTime.now());
         issue.setUpdatedAt(LocalDateTime.now());
@@ -67,7 +67,7 @@ public class IssueService {
         if (!organizationRepository.existsById(organizationId)) {
             throw new ResourceNotFoundException("Organization not found with id: " + organizationId);
         }
-        return issueRepository.findByProjects_Organization_Id(organizationId);
+        return issueRepository.findByProject_Organization_Id(organizationId);
     }
 
     public List<Issue> getIssuesByProjectId(Long projectId) {
@@ -75,7 +75,7 @@ public class IssueService {
         if (projectRepository.findByIdAndOrganizationId(projectId, tenantId).isEmpty()) {
             throw new ResourceNotFoundException("Project not found with id: " + projectId);
         }
-        return issueRepository.findByProjectsIdAndOrganizationId(projectId, tenantId);
+        return issueRepository.findByProjectIdAndOrganizationId(projectId, tenantId);
     }
 
     public List<Issue> getIssuesByAssignedUser(UUID userId) {
@@ -111,7 +111,7 @@ public class IssueService {
         Issue issue = getIssueById(id);
         Long tenantId = tenantAccessService.requireTenantId();
         
-        Projects project = projectRepository.findByIdAndOrganizationId(issueDto.getProjectId(), tenantId)
+        Project project = projectRepository.findByIdAndOrganizationId(issueDto.getProjectId(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + issueDto.getProjectId()));
 
         issue.setTitle(issueDto.getTitle());
@@ -120,7 +120,7 @@ public class IssueService {
         issue.setIssueType(normalizeIssueType(issueDto.getIssueType()));
         issue.setAssignedTo(issueDto.getAssignedTo());
         issue.setAssignedBy(issueDto.getAssignedBy());
-        issue.setProjects(project);
+        issue.setProject(project);
         issue.setOrganization(project.getOrganization());
         issue.setUpdatedAt(LocalDateTime.now());
 

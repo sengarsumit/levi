@@ -1,7 +1,7 @@
 package com.koda.levi.controller;
 
 import com.koda.levi.dto.ProjectDto;
-import com.koda.levi.entity.Projects;
+import com.koda.levi.entity.Project;
 import com.koda.levi.service.ProjectService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -17,27 +17,27 @@ public class ProjectController {
     private final ProjectService projectService;
 
     @PostMapping
-    public ResponseEntity<Projects> createProject(@RequestBody ProjectDto projectDto) {
+    public ResponseEntity<Project> createProject(@RequestBody ProjectDto projectDto) {
         return ResponseEntity.ok(projectService.create(projectDto));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Projects> getProjectById(@PathVariable Long id) {
+    public ResponseEntity<Project> getProjectById(@PathVariable Long id) {
         return ResponseEntity.ok(projectService.getProjectById(id));
     }
 
     @GetMapping
-    public ResponseEntity<List<Projects>> getAllProjects() {
+    public ResponseEntity<List<Project>> getAllProjects() {
         return ResponseEntity.ok(projectService.getAllProjects());
     }
 
     @GetMapping("/organization/{orgId}")
-    public ResponseEntity<List<Projects>> getProjectsByOrganization(@PathVariable Long orgId) {
+    public ResponseEntity<List<Project>> getProjectsByOrganization(@PathVariable Long orgId) {
         return ResponseEntity.ok(projectService.getProjectsByOrganization(orgId));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Projects> updateProject(@PathVariable Long id, @RequestBody ProjectDto projectDto) {
+    public ResponseEntity<Project> updateProject(@PathVariable Long id, @RequestBody ProjectDto projectDto) {
         return ResponseEntity.ok(projectService.updateProject(id, projectDto));
     }
 

@@ -34,5 +34,5 @@ public class Organization {
     private LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "organization", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Projects> projects;
+    private List<Project> projects;
 }

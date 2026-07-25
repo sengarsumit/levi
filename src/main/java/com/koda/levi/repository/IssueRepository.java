@@ -11,11 +11,11 @@ import java.util.UUID;
 
 @Repository
 public interface IssueRepository extends JpaRepository<Issue, Integer>, JpaSpecificationExecutor<Issue> {
-    List<Issue> findByProjectsId(Long projectId);
-    List<Issue> findByProjects_Organization_Id(Long organizationId);
+    List<Issue> findByProjectId(Long projectId);
+    List<Issue> findByProject_Organization_Id(Long organizationId);
     List<Issue> findByAssignedTo(UUID assignedTo);
     List<Issue> findByOrganizationId(Long organizationId);
     Optional<Issue> findByIdAndOrganizationId(Integer id, Long organizationId);
-    List<Issue> findByProjectsIdAndOrganizationId(Long projectId, Long organizationId);
+    List<Issue> findByProjectIdAndOrganizationId(Long projectId, Long organizationId);
     List<Issue> findByAssignedToAndOrganizationId(UUID assignedTo, Long organizationId);
 }

@@ -43,12 +43,27 @@ public class Issue {
     @ManyToOne
     @JoinColumn(name = "project_id", nullable = false)
     @JsonIgnore
-    private Projects projects;
+    private Project project;
 
     @ManyToOne
     @JoinColumn(name = "organization_id", nullable = false)
     @JsonIgnore
     private Organization organization;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "board_id")
+    @JsonIgnore
+    private Board board;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "workflow_state_id")
+    @JsonIgnore
+    private WorkflowState workflowState;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sprint_id")
+    @JsonIgnore
+    private Sprint sprint;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

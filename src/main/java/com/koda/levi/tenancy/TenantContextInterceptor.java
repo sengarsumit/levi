@@ -96,6 +96,9 @@ public class TenantContextInterceptor implements HandlerInterceptor {
         String path = request.getRequestURI();
         return path.startsWith("/organization")
                 || path.startsWith("/projects")
-                || path.startsWith("/issues");
+                || path.startsWith("/issues")
+                || path.startsWith("/boards")
+                || path.startsWith("/workflow-states")
+                || path.startsWith("/sprints");
     }
 }
