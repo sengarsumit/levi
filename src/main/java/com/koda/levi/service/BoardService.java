@@ -4,10 +4,12 @@ import com.koda.levi.dto.BoardDto;
 import com.koda.levi.entity.Board;
 import com.koda.levi.entity.Organization;
 import com.koda.levi.entity.Project;
+import com.koda.levi.entity.WorkflowState;
 import com.koda.levi.exception.ResourceNotFoundException;
 import com.koda.levi.repository.BoardRepository;
 import com.koda.levi.repository.OrganizationRepository;
 import com.koda.levi.repository.ProjectRepository;
+import com.koda.levi.repository.WorkflowStateRepository;
 import com.koda.levi.tenancy.TenantAccessService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,7 @@ public class BoardService {
     private final BoardRepository boardRepository;
     private final ProjectRepository projectRepository;
     private final OrganizationRepository organizationRepository;
+    private final WorkflowStateRepository workflowStateRepository;
     private final TenantAccessService tenantAccessService;
 
     public Board create(BoardDto boardDto) {
@@ -40,7 +43,26 @@ public class BoardService {
         board.setCreatedAt(LocalDateTime.now());
         board.setUpdatedAt(LocalDateTime.now());
 
-        return boardRepository.save(board);
+        board = boardRepository.save(board);
+
+        // Auto-seed default workflow states: To Do, In Progress, Done
+        seedDefaultWorkflowStates(board, org);
+
+        return board;
+    }
+
+    private void seedDefaultWorkflowStates(Board board, Organization org) {
+        String[] defaultStates = {"To Do", "In Progress", "Done"};
+        for (int i = 0; i < defaultStates.length; i++) {
+            WorkflowState ws = new WorkflowState();
+            ws.setName(defaultStates[i]);
+            ws.setOrderIndex(i);
+            ws.setBoard(board);
+            ws.setOrganization(org);
+            ws.setCreatedAt(LocalDateTime.now());
+            ws.setUpdatedAt(LocalDateTime.now());
+            workflowStateRepository.save(ws);
+        }
     }
 
     public Board getBoardById(Long id) {
@@ -56,10 +78,8 @@ public class BoardService {
 
     public Board updateBoard(Long id, BoardDto boardDto) {
         Board board = getBoardById(id);
-        
         board.setName(boardDto.getName());
         board.setUpdatedAt(LocalDateTime.now());
-        
         return boardRepository.save(board);
     }
 

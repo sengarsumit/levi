@@ -10,6 +10,8 @@ import com.koda.levi.repository.ProjectRepository;
 import com.koda.levi.repository.SprintRepository;
 import com.koda.levi.tenancy.TenantAccessService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -24,6 +26,7 @@ public class SprintService {
     private final OrganizationRepository organizationRepository;
     private final TenantAccessService tenantAccessService;
 
+    @CacheEvict(value = "sprints", key = "#sprintDto.projectId")
     public Sprint create(SprintDto sprintDto) {
         Long tenantId = tenantAccessService.requireTenantId();
 
@@ -51,11 +54,13 @@ public class SprintService {
                 .orElseThrow(() -> new ResourceNotFoundException("Sprint not found with id: " + id));
     }
 
+    @Cacheable(value = "sprints", key = "#projectId")
     public List<Sprint> getAllSprintsByProject(Long projectId) {
         Long tenantId = tenantAccessService.requireTenantId();
         return sprintRepository.findByProjectIdAndOrganizationId(projectId, tenantId);
     }
 
+    @CacheEvict(value = "sprints", allEntries = true)
     public Sprint updateSprint(Long id, SprintDto sprintDto) {
         Sprint sprint = getSprintById(id);
         
@@ -67,6 +72,7 @@ public class SprintService {
         return sprintRepository.save(sprint);
     }
 
+    @CacheEvict(value = "sprints", allEntries = true)
     public void deleteSprint(Long id) {
         Sprint sprint = getSprintById(id);
         sprintRepository.delete(sprint);

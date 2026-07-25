@@ -21,13 +21,13 @@ public class OrganizationService {
     private final TenantAccessService tenantAccessService;
 
     public Organization createOrganization(OrganizationDto organizationDto) {
-        organizationRepository.findByName(organizationDto.getOrgName())
+        organizationRepository.findByName(organizationDto.getName())
                 .ifPresent(org -> {
-                    throw new BadRequestException("Organization with name " + organizationDto.getOrgName() + " already exists");
+                    throw new BadRequestException("Organization with name " + organizationDto.getName() + " already exists");
                 });
 
         Organization org = new Organization();
-        org.setName(organizationDto.getOrgName());
+        org.setName(organizationDto.getName());
         org.setCreatedAt(LocalDateTime.now());
         org.setUpdatedAt(LocalDateTime.now());
         return organizationRepository.save(org);
@@ -51,7 +51,7 @@ public class OrganizationService {
     public Organization updateOrganization(Long id, OrganizationDto organizationDto) {
         tenantAccessService.requireTenant(id);
         Organization org = getOrganizationById(id);
-        org.setName(organizationDto.getOrgName());
+        org.setName(organizationDto.getName());
         org.setUpdatedAt(LocalDateTime.now());
         return organizationRepository.save(org);
     }

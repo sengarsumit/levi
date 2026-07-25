@@ -15,6 +15,6 @@ public class ProjectDto {
     private ProjectStatus status;
     private LocalDateTime deadline;
     private UUID createdBy;
-    private long orgID;
+    private long orgId;
 }
 

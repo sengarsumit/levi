@@ -10,6 +10,8 @@ import com.koda.levi.repository.OrganizationRepository;
 import com.koda.levi.repository.WorkflowStateRepository;
 import com.koda.levi.tenancy.TenantAccessService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -24,6 +26,7 @@ public class WorkflowStateService {
     private final OrganizationRepository organizationRepository;
     private final TenantAccessService tenantAccessService;
 
+    @CacheEvict(value = "workflowStates", key = "#workflowStateDto.boardId")
     public WorkflowState create(WorkflowStateDto workflowStateDto) {
         Long tenantId = tenantAccessService.requireTenantId();
 
@@ -50,11 +53,13 @@ public class WorkflowStateService {
                 .orElseThrow(() -> new ResourceNotFoundException("WorkflowState not found with id: " + id));
     }
 
+    @Cacheable(value = "workflowStates", key = "#boardId")
     public List<WorkflowState> getAllWorkflowStatesByBoard(Long boardId) {
         Long tenantId = tenantAccessService.requireTenantId();
         return workflowStateRepository.findByBoardIdAndOrganizationIdOrderByOrderIndexAsc(boardId, tenantId);
     }
 
+    @CacheEvict(value = "workflowStates", key = "#result.board.id")
     public WorkflowState updateWorkflowState(Long id, WorkflowStateDto workflowStateDto) {
         WorkflowState workflowState = getWorkflowStateById(id);
         
@@ -65,6 +70,7 @@ public class WorkflowStateService {
         return workflowStateRepository.save(workflowState);
     }
 
+    @CacheEvict(value = "workflowStates", allEntries = true)
     public void deleteWorkflowState(Long id) {
         WorkflowState workflowState = getWorkflowStateById(id);
         workflowStateRepository.delete(workflowState);

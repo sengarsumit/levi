@@ -18,4 +18,7 @@ public interface IssueRepository extends JpaRepository<Issue, Integer>, JpaSpeci
     Optional<Issue> findByIdAndOrganizationId(Integer id, Long organizationId);
     List<Issue> findByProjectIdAndOrganizationId(Long projectId, Long organizationId);
     List<Issue> findByAssignedToAndOrganizationId(UUID assignedTo, Long organizationId);
+    List<Issue> findByWorkflowStateIdAndOrganizationId(Long workflowStateId, Long organizationId);
+    List<Issue> findByBoardIdAndOrganizationId(Long boardId, Long organizationId);
+    List<Issue> findByProjectIdAndSprintIsNullAndOrganizationId(Long projectId, Long organizationId);
 }

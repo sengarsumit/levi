@@ -1,6 +1,7 @@
 package com.koda.levi.entity;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
@@ -34,5 +35,6 @@ public class Organization {
     private LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "organization", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
     private List<Project> projects;
 }

@@ -9,6 +9,8 @@ import com.koda.levi.repository.OrganizationRepository;
 import com.koda.levi.repository.ProjectRepository;
 import com.koda.levi.tenancy.TenantAccessService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -22,9 +24,10 @@ public class ProjectService {
     private final OrganizationRepository organizationRepository;
     private final TenantAccessService tenantAccessService;
 
+    @CacheEvict(value = {"projects", "organizationProjects"}, allEntries = true)
     public Project create(ProjectDto projectDto) {
         Long tenantId = tenantAccessService.requireTenantId();
-        tenantAccessService.requireTenant(projectDto.getOrgID());
+        tenantAccessService.requireTenant(projectDto.getOrgId());
 
         Organization org = organizationRepository.findById(tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: " + tenantId));
@@ -62,12 +65,14 @@ public class ProjectService {
         return projectRepository.save(project);
     }
 
+    @Cacheable(value = "projects", key = "#id")
     public Project getProjectById(Long id) {
         Long tenantId = tenantAccessService.requireTenantId();
         return projectRepository.findByIdAndOrganizationId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
     }
 
+    @Cacheable(value = "organizationProjects", key = "T(com.koda.levi.tenancy.TenantContext).getCurrentTenant()")
     public List<Project> getAllProjects() {
         return projectRepository.findByOrganizationId(tenantAccessService.requireTenantId());
     }
@@ -80,10 +85,11 @@ public class ProjectService {
         return projectRepository.findByOrganizationId(orgId);
     }
 
+    @CacheEvict(value = {"projects", "organizationProjects"}, allEntries = true)
     public Project updateProject(Long id, ProjectDto projectDto) {
         Project project = getProjectById(id);
         Long tenantId = tenantAccessService.requireTenantId();
-        tenantAccessService.requireTenant(projectDto.getOrgID());
+        tenantAccessService.requireTenant(projectDto.getOrgId());
         
         if (!project.getName().equals(projectDto.getName())) {
             projectRepository.findByNameAndOrganizationId(projectDto.getName(), tenantId)
@@ -109,6 +115,7 @@ public class ProjectService {
         return projectRepository.save(project);
     }
 
+    @CacheEvict(value = {"projects", "organizationProjects"}, allEntries = true)
     public void deleteProject(Long id) {
         Project project = getProjectById(id);
         projectRepository.delete(project);

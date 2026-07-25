@@ -21,7 +21,7 @@ public class TenantContextInterceptor implements HandlerInterceptor {
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws IOException {
         TenantContext.clear();
 
-        if ("OPTIONS".equalsIgnoreCase(request.getMethod()) || isAuthRoute(request) || isOrganizationCreation(request)) {
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod()) || isAuthRoute(request) || isOrganizationAccess(request)) {
             return true;
         }
 
@@ -88,8 +88,10 @@ public class TenantContextInterceptor implements HandlerInterceptor {
         return request.getRequestURI().startsWith("/auth");
     }
 
-    private boolean isOrganizationCreation(HttpServletRequest request) {
-        return "POST".equalsIgnoreCase(request.getMethod()) && "/organization".equals(request.getRequestURI());
+    private boolean isOrganizationAccess(HttpServletRequest request) {
+        String method = request.getMethod();
+        String uri = request.getRequestURI();
+        return ("POST".equalsIgnoreCase(method) || "GET".equalsIgnoreCase(method)) && "/organization".equals(uri);
     }
 
     private boolean requiresTenant(HttpServletRequest request) {
@@ -99,6 +101,7 @@ public class TenantContextInterceptor implements HandlerInterceptor {
                 || path.startsWith("/issues")
                 || path.startsWith("/boards")
                 || path.startsWith("/workflow-states")
-                || path.startsWith("/sprints");
+                || path.startsWith("/sprints")
+                || path.startsWith("/comments");
     }
 }

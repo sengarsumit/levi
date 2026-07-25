@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -52,6 +53,21 @@ public class IssueController {
         return ResponseEntity.ok(issueService.getIssuesByProjectId(projectId));
     }
 
+    @GetMapping("/project/{projectId}/backlog")
+    public ResponseEntity<List<Issue>> getBacklogIssuesByProject(@PathVariable Long projectId) {
+        return ResponseEntity.ok(issueService.getBacklogIssuesByProject(projectId));
+    }
+
+    @GetMapping("/board/{boardId}")
+    public ResponseEntity<List<Issue>> getIssuesByBoard(@PathVariable Long boardId) {
+        return ResponseEntity.ok(issueService.getIssuesByBoard(boardId));
+    }
+
+    @GetMapping("/workflow-state/{workflowStateId}")
+    public ResponseEntity<List<Issue>> getIssuesByWorkflowState(@PathVariable Long workflowStateId) {
+        return ResponseEntity.ok(issueService.getIssuesByWorkflowState(workflowStateId));
+    }
+
     @GetMapping("/assigned/{userId}")
     public ResponseEntity<List<Issue>> getIssuesByAssignedUser(@PathVariable UUID userId) {
         return ResponseEntity.ok(issueService.getIssuesByAssignedUser(userId));
@@ -60,6 +76,15 @@ public class IssueController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<Issue> updateIssueStatus(@PathVariable Integer id, @RequestBody Integer status) {
         return ResponseEntity.ok(issueService.updateIssueStatus(id, status));
+    }
+
+    @PatchMapping("/{id}/move")
+    public ResponseEntity<Issue> moveIssue(@PathVariable Integer id, @RequestBody Map<String, Long> body) {
+        Long workflowStateId = body.get("workflowStateId");
+        if (workflowStateId == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.ok(issueService.moveIssue(id, workflowStateId));
     }
 
     @PutMapping("/{id}")

@@ -31,6 +31,9 @@ public class Sprint {
     @Column(name = "end_date")
     private LocalDateTime endDate;
 
+    @Column(name = "status", nullable = false)
+    private String status = "PLANNED";
+
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 

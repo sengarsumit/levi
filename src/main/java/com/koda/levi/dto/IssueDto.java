@@ -12,4 +12,7 @@ public class IssueDto {
     private UUID assignedTo;
     private UUID assignedBy;
     private Long projectId;
+    private Long workflowStateId;
+    private Long boardId;
+    private Long sprintId;
 }

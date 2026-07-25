@@ -70,4 +70,24 @@ public class Issue {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @com.fasterxml.jackson.annotation.JsonProperty("projectId")
+    public Long fetchProjectId() {
+        return project != null ? project.getId() : null;
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("workflowStateId")
+    public Long fetchWorkflowStateId() {
+        return workflowState != null ? workflowState.getId() : null;
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("boardId")
+    public Long fetchBoardId() {
+        return board != null ? board.getId() : null;
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("sprintId")
+    public Long fetchSprintId() {
+        return sprint != null ? sprint.getId() : null;
+    }
 }
