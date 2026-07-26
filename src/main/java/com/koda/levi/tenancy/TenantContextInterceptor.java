@@ -91,6 +91,9 @@ public class TenantContextInterceptor implements HandlerInterceptor {
     private boolean isOrganizationAccess(HttpServletRequest request) {
         String method = request.getMethod();
         String uri = request.getRequestURI();
+        if (uri.startsWith("/organization") && uri.endsWith("/join")) {
+            return true; // Allow join requests without tenant header
+        }
         return ("POST".equalsIgnoreCase(method) || "GET".equalsIgnoreCase(method)) && "/organization".equals(uri);
     }
 

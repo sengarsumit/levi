@@ -1,6 +1,7 @@
 package com.koda.levi.config;
 
 import com.koda.levi.entity.Users;
+import com.koda.levi.entity.OrganizationUser;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,6 +13,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Date;
 import java.util.Map;
+import java.util.Optional;
+import java.util.List;
+import java.util.Collections;
 import java.util.Optional;
 
 @Service
@@ -37,11 +41,19 @@ public class JwtService {
         return expiration;
     }
 
-    public String generateToken(Users user) {
+    public String generateToken(Users user, OrganizationUser orgUser) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", user.getId().toString());
         claims.put("systemId", user.getSystemId());
-        claims.put("role", user.getRole());
+        // System level role
+        claims.put("role", "ROLE_USER");
+        
+        if (orgUser != null) {
+            claims.put("tenantId", orgUser.getOrganization().getId());
+            claims.put("orgSlug", orgUser.getOrganization().getSlug());
+            claims.put("orgRole", orgUser.getRole().getName());
+            claims.put("permissions", orgUser.getRole().getPermissions());
+        }
 
         return generateToken(user.getEmail(), claims);
     }
@@ -91,6 +103,19 @@ public class JwtService {
             return Optional.of(Long.parseLong(tenantId.toString()));
         } catch (JwtException | IllegalArgumentException e) {
             return Optional.empty();
+        }
+    }
+
+    public List<String> extractPermissions(String token) {
+        try {
+            Claims claims = extractAllClaims(token);
+            Object perms = claims.get("permissions");
+            if (perms instanceof List) {
+                return (List<String>) perms;
+            }
+            return Collections.emptyList();
+        } catch (JwtException | IllegalArgumentException e) {
+            return Collections.emptyList();
         }
     }
 

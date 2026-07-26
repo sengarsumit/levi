@@ -28,6 +28,9 @@ public class Organization {
     @Column(name = "name")
     private String name;
 
+    @Column(name = "slug", unique = true)
+    private String slug;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -74,11 +75,13 @@ public class IssueController {
     }
 
     @PatchMapping("/{id}/status")
+    @PreAuthorize("hasAuthority('TASK_TRANSITION')")
     public ResponseEntity<Issue> updateIssueStatus(@PathVariable Integer id, @RequestBody Integer status) {
         return ResponseEntity.ok(issueService.updateIssueStatus(id, status));
     }
 
     @PatchMapping("/{id}/move")
+    @PreAuthorize("hasAuthority('TASK_TRANSITION')")
     public ResponseEntity<Issue> moveIssue(@PathVariable Integer id, @RequestBody Map<String, Long> body) {
         Long workflowStateId = body.get("workflowStateId");
         if (workflowStateId == null) {

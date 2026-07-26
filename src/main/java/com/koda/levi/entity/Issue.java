@@ -71,6 +71,15 @@ public class Issue {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(name = "started_at")
+    private LocalDateTime startedAt;
+
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
+
+    @Column(name = "time_taken_hours")
+    private Double timeTakenHours;
+
     @com.fasterxml.jackson.annotation.JsonProperty("projectId")
     public Long fetchProjectId() {
         return project != null ? project.getId() : null;

@@ -5,6 +5,7 @@ import com.koda.levi.entity.Project;
 import com.koda.levi.service.ProjectService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,6 +18,7 @@ public class ProjectController {
     private final ProjectService projectService;
 
     @PostMapping
+    @PreAuthorize("hasAuthority('PROJECT_CREATE')")
     public ResponseEntity<Project> createProject(@RequestBody ProjectDto projectDto) {
         return ResponseEntity.ok(projectService.create(projectDto));
     }

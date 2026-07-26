@@ -34,15 +34,12 @@ public class Users implements UserDetails {
     @Column(name = "name", nullable = false)
     private String name;
 
+
     @Column(name = "email", nullable = false, unique = true)
     private String email;
 
     @Column(name = "password", nullable = false)
     private String password;
-
-    @Builder.Default
-    @Column(name = "role")
-    private String role = "ROLE_USER";
 
     @Column(name = "created_At")
     private LocalDateTime createdAt;
@@ -74,7 +71,7 @@ public class Users implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(() -> role);
+        return List.of(() -> "ROLE_USER");
     }
 
     @Override

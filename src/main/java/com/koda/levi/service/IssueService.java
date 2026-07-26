@@ -11,9 +11,12 @@ import com.koda.levi.exception.ResourceNotFoundException;
 import com.koda.levi.repository.BoardRepository;
 import com.koda.levi.repository.IssueRepository;
 import com.koda.levi.repository.OrganizationRepository;
+import com.koda.levi.repository.OrganizationUserRepository;
 import com.koda.levi.repository.ProjectRepository;
 import com.koda.levi.repository.SprintRepository;
 import com.koda.levi.repository.WorkflowStateRepository;
+import com.koda.levi.tenancy.TenantAccessService;
+import com.koda.levi.entity.OrganizationUser;
 import com.koda.levi.tenancy.TenantAccessService;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +44,8 @@ public class IssueService {
     private final SprintRepository sprintRepository;
     private final TenantAccessService tenantAccessService;
     private final ApplicationEventPublisher eventPublisher;
+    private final IssueTimeCalculatorService timeCalculatorService;
+    private final OrganizationUserRepository organizationUserRepository;
 
     public Issue createIssue(IssueDto issueDto) {
         Long tenantId = tenantAccessService.requireTenantId();
@@ -180,6 +185,34 @@ public class IssueService {
         if (ws.getBoard() != null) {
             issue.setBoard(ws.getBoard());
         }
+        
+        String wsName = ws.getName().trim();
+        if (wsName.equalsIgnoreCase("In Progress") && issue.getStartedAt() == null) {
+            issue.setStartedAt(LocalDateTime.now());
+        } else if (wsName.equalsIgnoreCase("Done")) {
+            issue.setCompletedAt(LocalDateTime.now());
+            if (issue.getStartedAt() != null && issue.getAssignedTo() != null) {
+                // Fetch assignee shift
+                organizationUserRepository.findByUserIdAndOrganizationId(issue.getAssignedTo(), tenantId).ifPresent(orgUser -> {
+                    Double hours = timeCalculatorService.calculateTimeTakenHours(
+                        issue.getStartedAt(),
+                        issue.getCompletedAt(),
+                        orgUser.getShiftStartTime(),
+                        orgUser.getShiftEndTime(),
+                        orgUser.getWorkingDays()
+                    );
+                    issue.setTimeTakenHours(hours);
+                });
+            }
+        } else {
+            // If moved backwards out of Done, wipe the completedAt/timeTaken? 
+            // The open question wasn't explicitly answered, but clearing them is the safest approach
+            if (issue.getCompletedAt() != null) {
+                issue.setCompletedAt(null);
+                issue.setTimeTakenHours(null);
+            }
+        }
+
         issue.setUpdatedAt(LocalDateTime.now());
         Issue saved = issueRepository.save(issue);
         eventPublisher.publishEvent(new com.koda.levi.event.IssueUpdatedEvent(
