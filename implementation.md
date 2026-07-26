@@ -16,6 +16,8 @@ PROJECT LEVI
                                  Phase 09: File Storage (S3/Cloudinary)
                                  Phase 10: Dockerization & CI/CD
                                  Phase 11: Microservices API Gateway Transition
+                                 Phase 12: Time Tracking & Shift Management
+                                 Phase 13: Analytics & Dashboards
                                  Phase 00: Foundation & System Architecture
                                  1. Objective
                                  Establish the core technological foundation for a high-performance, multi-tenant SaaS project management
@@ -81,9 +83,13 @@ PROJECT LEVI
                                  Project Levi utilizes Row-Level Isolation via a discriminator column (organization_id). Every tenant's
                                  data lives in the same database, but Hibernate filters prevent data leakage.
                                  2. Implementation Mechanics
-                                 A custom HandlerInterceptorAdapter extracts the X-Tenant-ID from the HTTP headers (or deduces
                                  it from the user's JWT claims). This tenant ID is stored in a ThreadLocal context. Hibernate intercepts all
                                  queries and automatically appends WHERE organization_id = ? to all outgoing SQL statements.
+                                 
+                                 3. Organization-Based Login & RBAC
+                                 Users belonging to a specific organization will authenticate via a dedicated route (e.g., /login/{org-slug} or /login/{org-id}).
+                                 Only Organization Creators/Admins possess the authority to create new projects.
+                                 Role-Based Access Control (RBAC): Organizations can define custom or predefined roles. These roles dictate permissions, such as the ability to transition tasks across workflow states or assign tasks to other users within the organization.
                                  Phase 03: Projects, Boards & Workflows
                                  1. Data Structures
                                  A Project acts as a container for workflows, sprints, and issues. Projects map closely to the Agile
