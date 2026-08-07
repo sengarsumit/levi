@@ -26,7 +26,7 @@ public class WorkflowStateService {
     private final OrganizationRepository organizationRepository;
     private final TenantAccessService tenantAccessService;
 
-    @CacheEvict(value = "workflowStates", key = "#workflowStateDto.boardId")
+    @CacheEvict(value = "workflowStates", key = "T(com.koda.levi.tenancy.TenantContext).getTenantId() + '-' + #workflowStateDto.boardId")
     public WorkflowState create(WorkflowStateDto workflowStateDto) {
         Long tenantId = tenantAccessService.requireTenantId();
 
@@ -53,13 +53,13 @@ public class WorkflowStateService {
                 .orElseThrow(() -> new ResourceNotFoundException("WorkflowState not found with id: " + id));
     }
 
-    @Cacheable(value = "workflowStates", key = "#boardId")
+    @Cacheable(value = "workflowStates", key = "T(com.koda.levi.tenancy.TenantContext).getTenantId() + '-' + #boardId")
     public List<WorkflowState> getAllWorkflowStatesByBoard(Long boardId) {
         Long tenantId = tenantAccessService.requireTenantId();
         return workflowStateRepository.findByBoardIdAndOrganizationIdOrderByOrderIndexAsc(boardId, tenantId);
     }
 
-    @CacheEvict(value = "workflowStates", key = "#result.board.id")
+    @CacheEvict(value = "workflowStates", key = "T(com.koda.levi.tenancy.TenantContext).getTenantId() + '-' + #result.board.id")
     public WorkflowState updateWorkflowState(Long id, WorkflowStateDto workflowStateDto) {
         WorkflowState workflowState = getWorkflowStateById(id);
         

@@ -3,6 +3,7 @@ package com.koda.levi.controller;
 import com.koda.levi.dto.IssueDto;
 import com.koda.levi.entity.Issue;
 import com.koda.levi.service.IssueService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,7 +23,7 @@ public class IssueController {
     private final IssueService issueService;
 
     @PostMapping
-    public ResponseEntity<Issue> createIssue(@RequestBody IssueDto issueDto) {
+    public ResponseEntity<Issue> createIssue(@Valid @RequestBody IssueDto issueDto) {
         return ResponseEntity.ok(issueService.createIssue(issueDto));
     }
 
@@ -91,7 +92,7 @@ public class IssueController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Issue> updateIssue(@PathVariable Integer id, @RequestBody IssueDto issueDto) {
+    public ResponseEntity<Issue> updateIssue(@PathVariable Integer id, @Valid @RequestBody IssueDto issueDto) {
         return ResponseEntity.ok(issueService.updateIssue(id, issueDto));
     }
 

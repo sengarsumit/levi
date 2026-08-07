@@ -3,6 +3,7 @@ package com.koda.levi.controller;
 import com.koda.levi.dto.ProjectDto;
 import com.koda.levi.entity.Project;
 import com.koda.levi.service.ProjectService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,7 +20,7 @@ public class ProjectController {
 
     @PostMapping
     @PreAuthorize("hasAuthority('PROJECT_CREATE')")
-    public ResponseEntity<Project> createProject(@RequestBody ProjectDto projectDto) {
+    public ResponseEntity<Project> createProject(@Valid @RequestBody ProjectDto projectDto) {
         return ResponseEntity.ok(projectService.create(projectDto));
     }
 
@@ -39,7 +40,7 @@ public class ProjectController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Project> updateProject(@PathVariable Long id, @RequestBody ProjectDto projectDto) {
+    public ResponseEntity<Project> updateProject(@PathVariable Long id, @Valid @RequestBody ProjectDto projectDto) {
         return ResponseEntity.ok(projectService.updateProject(id, projectDto));
     }
 

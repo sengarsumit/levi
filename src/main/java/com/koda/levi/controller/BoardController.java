@@ -3,6 +3,7 @@ package com.koda.levi.controller;
 import com.koda.levi.dto.BoardDto;
 import com.koda.levi.entity.Board;
 import com.koda.levi.service.BoardService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,7 +18,7 @@ public class BoardController {
     private final BoardService boardService;
 
     @PostMapping
-    public ResponseEntity<Board> createBoard(@RequestBody BoardDto boardDto) {
+    public ResponseEntity<Board> createBoard(@Valid @RequestBody BoardDto boardDto) {
         return ResponseEntity.ok(boardService.create(boardDto));
     }
 

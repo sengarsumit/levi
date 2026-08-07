@@ -19,6 +19,7 @@ public class AuthResponse {
     private String refreshToken;
     private String tokenType;
     private long expiresInMs;
+    private UserResponseDto user;
 
     public AuthResponse(String token) {
         this.token = token;
@@ -26,13 +27,14 @@ public class AuthResponse {
         this.tokenType = "Bearer";
     }
 
-    public static AuthResponse bearer(String accessToken, String refreshToken, long expiresInMs) {
+    public static AuthResponse bearer(String accessToken, String refreshToken, long expiresInMs, UserResponseDto user) {
         return AuthResponse.builder()
                 .token(accessToken)
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .tokenType("Bearer")
                 .expiresInMs(expiresInMs)
+                .user(user)
                 .build();
     }
 }

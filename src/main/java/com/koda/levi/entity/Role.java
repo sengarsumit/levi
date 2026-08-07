@@ -1,5 +1,6 @@
 package com.koda.levi.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -20,6 +21,11 @@ public class Role {
     @Column(nullable = false)
     private String name;
 
+    // Lazy + no consumer ever reads it in JSON (frontend only uses id/name/permissions) —
+    // @JsonIgnore avoids the same Hibernate-proxy Jackson serialization failure every other
+    // lazy association in this codebase already avoids this way (see Project.organization,
+    // WorkflowState.organization/.board, etc.) — this one was just missed.
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id", nullable = false)
     private Organization organization;

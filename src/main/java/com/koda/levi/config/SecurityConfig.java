@@ -23,6 +23,13 @@ public class SecurityConfig {
                 .csrf(csrf->csrf.disable())
                 .authorizeHttpRequests(auth->auth
                         .requestMatchers("/auth/**").permitAll()
+                        // SockJS's own HTTP handshake (/info, xhr fallback polling, etc.)
+                        // can't carry the app's Bearer token the way the later STOMP CONNECT
+                        // frame does, so requiring auth here made the handshake itself always
+                        // 401. Real auth for the socket happens at the STOMP layer instead
+                        // (StompAuthChannelInterceptor validates the CONNECT frame's token and
+                        // rejects any SUBSCRIBE from a session that never authenticated).
+                        .requestMatchers("/ws-levi/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(sess-> sess.sessionCreationPolicy(

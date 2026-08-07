@@ -65,14 +65,14 @@ public class ProjectService {
         return projectRepository.save(project);
     }
 
-    @Cacheable(value = "projects", key = "#id")
+    @Cacheable(value = "projects", key = "T(com.koda.levi.tenancy.TenantContext).getTenantId() + '-' + #id")
     public Project getProjectById(Long id) {
         Long tenantId = tenantAccessService.requireTenantId();
         return projectRepository.findByIdAndOrganizationId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
     }
 
-    @Cacheable(value = "organizationProjects", key = "T(com.koda.levi.tenancy.TenantContext).getCurrentTenant()")
+    @Cacheable(value = "organizationProjects", key = "T(com.koda.levi.tenancy.TenantContext).getTenantId()")
     public List<Project> getAllProjects() {
         return projectRepository.findByOrganizationId(tenantAccessService.requireTenantId());
     }

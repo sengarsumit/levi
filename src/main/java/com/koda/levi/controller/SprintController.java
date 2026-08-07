@@ -3,6 +3,7 @@ package com.koda.levi.controller;
 import com.koda.levi.dto.SprintDto;
 import com.koda.levi.entity.Sprint;
 import com.koda.levi.service.SprintService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,7 +18,7 @@ public class SprintController {
     private final SprintService sprintService;
 
     @PostMapping
-    public ResponseEntity<Sprint> createSprint(@RequestBody SprintDto sprintDto) {
+    public ResponseEntity<Sprint> createSprint(@Valid @RequestBody SprintDto sprintDto) {
         return ResponseEntity.ok(sprintService.create(sprintDto));
     }
 
@@ -32,7 +33,7 @@ public class SprintController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Sprint> updateSprint(@PathVariable Long id, @RequestBody SprintDto sprintDto) {
+    public ResponseEntity<Sprint> updateSprint(@PathVariable Long id, @Valid @RequestBody SprintDto sprintDto) {
         return ResponseEntity.ok(sprintService.updateSprint(id, sprintDto));
     }
 

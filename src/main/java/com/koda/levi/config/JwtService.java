@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.List;
 import java.util.Collections;
-import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class JwtService {
@@ -101,6 +101,19 @@ public class JwtService {
             }
 
             return Optional.of(Long.parseLong(tenantId.toString()));
+        } catch (JwtException | IllegalArgumentException e) {
+            return Optional.empty();
+        }
+    }
+
+    public Optional<UUID> extractUserId(String token) {
+        try {
+            Claims claims = extractAllClaims(token);
+            Object userId = claims.get("userId");
+            if (userId == null) {
+                return Optional.empty();
+            }
+            return Optional.of(UUID.fromString(userId.toString()));
         } catch (JwtException | IllegalArgumentException e) {
             return Optional.empty();
         }

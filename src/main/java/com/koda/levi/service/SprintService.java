@@ -26,7 +26,7 @@ public class SprintService {
     private final OrganizationRepository organizationRepository;
     private final TenantAccessService tenantAccessService;
 
-    @CacheEvict(value = "sprints", key = "#sprintDto.projectId")
+    @CacheEvict(value = "sprints", key = "T(com.koda.levi.tenancy.TenantContext).getTenantId() + '-' + #sprintDto.projectId")
     public Sprint create(SprintDto sprintDto) {
         Long tenantId = tenantAccessService.requireTenantId();
 
@@ -54,7 +54,7 @@ public class SprintService {
                 .orElseThrow(() -> new ResourceNotFoundException("Sprint not found with id: " + id));
     }
 
-    @Cacheable(value = "sprints", key = "#projectId")
+    @Cacheable(value = "sprints", key = "T(com.koda.levi.tenancy.TenantContext).getTenantId() + '-' + #projectId")
     public List<Sprint> getAllSprintsByProject(Long projectId) {
         Long tenantId = tenantAccessService.requireTenantId();
         return sprintRepository.findByProjectIdAndOrganizationId(projectId, tenantId);
@@ -67,8 +67,11 @@ public class SprintService {
         sprint.setName(sprintDto.getName());
         sprint.setStartDate(sprintDto.getStartDate());
         sprint.setEndDate(sprintDto.getEndDate());
+        if (sprintDto.getStatus() != null && !sprintDto.getStatus().isBlank()) {
+            sprint.setStatus(sprintDto.getStatus());
+        }
         sprint.setUpdatedAt(LocalDateTime.now());
-        
+
         return sprintRepository.save(sprint);
     }
 

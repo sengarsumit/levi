@@ -4,6 +4,7 @@ import com.koda.levi.dto.CommentDto;
 import com.koda.levi.entity.Comment;
 import com.koda.levi.entity.Users;
 import com.koda.levi.service.CommentService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -22,7 +23,7 @@ public class CommentController {
 
     @PostMapping
     public ResponseEntity<Comment> createComment(
-            @RequestBody CommentDto dto,
+            @Valid @RequestBody CommentDto dto,
             @AuthenticationPrincipal Users currentUser) {
         UUID userId = currentUser.getId();
         return ResponseEntity.ok(commentService.createComment(dto, userId));

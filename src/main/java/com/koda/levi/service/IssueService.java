@@ -205,12 +205,13 @@ public class IssueService {
                 });
             }
         } else {
-            // If moved backwards out of Done, wipe the completedAt/timeTaken? 
-            // The open question wasn't explicitly answered, but clearing them is the safest approach
-            if (issue.getCompletedAt() != null) {
-                issue.setCompletedAt(null);
-                issue.setTimeTakenHours(null);
-            }
+            // Moved to neither "In Progress" nor "Done" (e.g. back to "To Do"): clear all
+            // progress timestamps so a future "In Progress" transition starts the clock
+            // fresh, instead of resuming from the original startedAt and inflating the
+            // recorded elapsed time by however long the issue sat idle in between.
+            issue.setStartedAt(null);
+            issue.setCompletedAt(null);
+            issue.setTimeTakenHours(null);
         }
 
         issue.setUpdatedAt(LocalDateTime.now());
@@ -232,8 +233,8 @@ public class IssueService {
         issue.setDescription(issueDto.getDescription());
         issue.setStatus(issueDto.getStatus() != null ? issueDto.getStatus() : issue.getStatus());
         issue.setIssueType(normalizeIssueType(issueDto.getIssueType()));
-        issue.setAssignedTo(issueDto.getAssignedTo());
-        issue.setAssignedBy(issueDto.getAssignedBy());
+        issue.setAssignedTo(issueDto.getAssignedTo() != null ? issueDto.getAssignedTo() : issue.getAssignedTo());
+        issue.setAssignedBy(issueDto.getAssignedBy() != null ? issueDto.getAssignedBy() : issue.getAssignedBy());
         issue.setProject(project);
         issue.setOrganization(project.getOrganization());
 

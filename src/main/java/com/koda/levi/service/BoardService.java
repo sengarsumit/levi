@@ -13,6 +13,7 @@ import com.koda.levi.repository.WorkflowStateRepository;
 import com.koda.levi.tenancy.TenantAccessService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -27,6 +28,7 @@ public class BoardService {
     private final WorkflowStateRepository workflowStateRepository;
     private final TenantAccessService tenantAccessService;
 
+    @Transactional
     public Board create(BoardDto boardDto) {
         Long tenantId = tenantAccessService.requireTenantId();
 

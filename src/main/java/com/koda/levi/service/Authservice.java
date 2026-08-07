@@ -5,6 +5,7 @@ import com.koda.levi.dto.AuthResponse;
 import com.koda.levi.dto.LoginRequest;
 import com.koda.levi.dto.RefreshTokenRequest;
 import com.koda.levi.dto.SignupRequest;
+import com.koda.levi.dto.UserResponseDto;
 import com.koda.levi.entity.RefreshToken;
 import com.koda.levi.entity.Users;
 import com.koda.levi.exception.BadRequestException;
@@ -130,7 +131,15 @@ public class Authservice {
     private AuthResponse buildAuthResponse(Users user, OrganizationUser orgUser) {
         String accessToken = jwtService.generateToken(user, orgUser);
         RefreshToken refreshToken = createRefreshToken(user);
-        return AuthResponse.bearer(accessToken, refreshToken.getToken(), jwtService.getAccessExpirationMs());
+        UserResponseDto userDto = UserResponseDto.builder()
+                .id(user.getId())
+                .systemId(user.getSystemId())
+                .name(user.getName())
+                .email(user.getEmail())
+                .createdAt(user.getCreatedAt())
+                .updatedAt(user.getUpdatedAt())
+                .build();
+        return AuthResponse.bearer(accessToken, refreshToken.getToken(), jwtService.getAccessExpirationMs(), userDto);
     }
 
     private RefreshToken createRefreshToken(Users user) {

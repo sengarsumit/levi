@@ -12,6 +12,7 @@ import com.koda.levi.tenancy.TenantAccessService;
 import com.koda.levi.tenancy.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
 import com.koda.levi.entity.OrganizationUser;
 import com.koda.levi.entity.OrgUserStatus;
@@ -50,6 +51,12 @@ public class OrganizationService {
         }
     }
 
+    private static final java.util.Set<String> DEFAULT_USER_PERMISSIONS =
+            new java.util.HashSet<>(List.of("ISSUE_READ", "ISSUE_UPDATE", "TASK_TRANSITION"));
+    private static final java.util.Set<String> DEFAULT_ADMIN_PERMISSIONS =
+            new java.util.HashSet<>(List.of("ISSUE_READ", "ISSUE_CREATE", "ISSUE_UPDATE", "ISSUE_DELETE",
+                    "TASK_TRANSITION", "PROJECT_CREATE", "ORG_ADMIN"));
+
     @PostConstruct
     public void backfillRoles() {
         List<Organization> orgs = organizationRepository.findAll();
@@ -59,19 +66,20 @@ public class OrganizationService {
                 Role userRole = new Role();
                 userRole.setName("User");
                 userRole.setOrganization(org);
-                userRole.setPermissions(new java.util.HashSet<>(List.of("ISSUE_READ", "ISSUE_UPDATE")));
+                userRole.setPermissions(new java.util.HashSet<>(DEFAULT_USER_PERMISSIONS));
                 roleRepository.save(userRole);
 
                 Role adminRole = new Role();
                 adminRole.setName("Admin");
                 adminRole.setOrganization(org);
-                adminRole.setPermissions(new java.util.HashSet<>(List.of("ISSUE_READ", "ISSUE_CREATE", "ISSUE_UPDATE", "ISSUE_DELETE", "ORG_ADMIN")));
+                adminRole.setPermissions(new java.util.HashSet<>(DEFAULT_ADMIN_PERMISSIONS));
                 roleRepository.save(adminRole);
             }
         }
     }
 
-    public Organization createOrganization(OrganizationDto organizationDto) {
+    @Transactional
+    public Organization createOrganization(OrganizationDto organizationDto, Users creator) {
         organizationRepository.findByName(organizationDto.getName())
                 .ifPresent(org -> {
                     throw new BadRequestException("Organization with name " + organizationDto.getName() + " already exists");
@@ -89,14 +97,23 @@ public class OrganizationService {
         Role userRole = new Role();
         userRole.setName("User");
         userRole.setOrganization(savedOrg);
-        userRole.setPermissions(new java.util.HashSet<>(List.of("ISSUE_READ", "ISSUE_UPDATE")));
+        userRole.setPermissions(new java.util.HashSet<>(DEFAULT_USER_PERMISSIONS));
         roleRepository.save(userRole);
 
         Role adminRole = new Role();
         adminRole.setName("Admin");
         adminRole.setOrganization(savedOrg);
-        adminRole.setPermissions(new java.util.HashSet<>(List.of("ISSUE_READ", "ISSUE_CREATE", "ISSUE_UPDATE", "ISSUE_DELETE", "ORG_ADMIN")));
+        adminRole.setPermissions(new java.util.HashSet<>(DEFAULT_ADMIN_PERMISSIONS));
         roleRepository.save(adminRole);
+
+        // The creator becomes an approved Admin member of the org they just created —
+        // without this there is no admin left to approve anyone else who joins.
+        OrganizationUser creatorMembership = new OrganizationUser();
+        creatorMembership.setOrganization(savedOrg);
+        creatorMembership.setUser(creator);
+        creatorMembership.setRole(adminRole);
+        creatorMembership.setStatus(OrgUserStatus.APPROVED);
+        organizationUserRepository.save(creatorMembership);
 
         return savedOrg;
     }
@@ -109,11 +126,23 @@ public class OrganizationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: " + id));
     }
 
-    public List<Organization> getAllOrganizations() {
+    public List<Organization> getAllOrganizations(UUID callerId) {
         if (TenantContext.hasTenant()) {
             return List.of(getOrganizationById(tenantAccessService.requireTenantId()));
         }
-        return organizationRepository.findAll();
+        // No tenant context yet (e.g. right after a plain login, before a workspace is
+        // selected): return the orgs this specific user actually belongs to, not every org
+        // in the system — that was the original bug, not a "browse all orgs" feature.
+        if (callerId == null) {
+            return List.of();
+        }
+        // Fetch real Organization rows via a scalar id projection rather than navigating
+        // OrganizationUser.getOrganization() — that association is FetchType.LAZY, and
+        // touching it creates a Hibernate proxy that serializes with a Jackson proxy-class
+        // error (and, since the persistence context caches by id, a later findAllById for
+        // the same ids would just return that same cached proxy instead of a real entity).
+        List<Long> orgIds = organizationUserRepository.findOrganizationIdsByUserIdAndStatus(callerId, OrgUserStatus.APPROVED);
+        return organizationRepository.findAllById(orgIds);
     }
 
     public Organization updateOrganization(Long id, OrganizationDto organizationDto) {
@@ -133,39 +162,54 @@ public class OrganizationService {
     public void joinOrganization(String orgSlug, UUID userId) {
         Organization org = organizationRepository.findBySlug(orgSlug)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
-        
+
         Users user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-                
+
         if (organizationUserRepository.findByUserIdAndOrganizationId(userId, org.getId()).isPresent()) {
             throw new BadRequestException("User already requested to join or is a member");
         }
-        
+
+        // role_id is NOT NULL in the database even though the entity marks it nullable, so a
+        // pending request needs a real role from the start. The approving admin picks/confirms
+        // the actual role anyway (approveMember always overwrites this), so a sensible default
+        // — the org's "User" role — is just a placeholder until then, not a real grant.
+        List<Role> orgRoles = roleRepository.findByOrganization(org);
+        Role defaultRole = orgRoles.stream()
+                .filter(r -> "User".equals(r.getName()))
+                .findFirst()
+                .orElseGet(() -> orgRoles.stream().findFirst()
+                        .orElseThrow(() -> new ResourceNotFoundException("Organization has no roles configured")));
+
         OrganizationUser orgUser = new OrganizationUser();
         orgUser.setOrganization(org);
         orgUser.setUser(user);
+        orgUser.setRole(defaultRole);
         orgUser.setStatus(OrgUserStatus.PENDING);
         organizationUserRepository.save(orgUser);
     }
     
     public List<OrganizationUser> getPendingMembers(Long orgId) {
         tenantAccessService.requireTenant(orgId);
-        return organizationUserRepository.findByOrganizationIdAndStatus(orgId, OrgUserStatus.PENDING);
+        return organizationUserRepository.findByOrganizationIdAndStatusFetchAll(orgId, OrgUserStatus.PENDING);
     }
-    
+
     public List<OrganizationUser> getActiveMembers(Long orgId) {
         tenantAccessService.requireTenant(orgId);
-        return organizationUserRepository.findByOrganizationIdAndStatus(orgId, OrgUserStatus.APPROVED);
+        return organizationUserRepository.findByOrganizationIdAndStatusFetchAll(orgId, OrgUserStatus.APPROVED);
     }
-    
+
     public OrganizationUser approveMember(Long orgId, UUID userId, Long roleId) {
         tenantAccessService.requireTenant(orgId);
-        OrganizationUser orgUser = organizationUserRepository.findByUserIdAndOrganizationId(userId, orgId)
+        OrganizationUser orgUser = organizationUserRepository.findByUserIdAndOrganizationIdFetchAll(userId, orgId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization user not found"));
-                
+
         Role role = roleRepository.findById(roleId)
                 .orElseThrow(() -> new ResourceNotFoundException("Role not found"));
-                
+        if (role.getOrganization().getId() != orgId) {
+            throw new BadRequestException("Role does not belong to this organization");
+        }
+
         orgUser.setStatus(OrgUserStatus.APPROVED);
         orgUser.setRole(role);
         return organizationUserRepository.save(orgUser);
@@ -187,7 +231,10 @@ public class OrganizationService {
         Organization org = getOrganizationById(orgId);
         Role role = roleRepository.findById(roleId)
                 .orElseThrow(() -> new ResourceNotFoundException("Role not found"));
-                
+        if (role.getOrganization().getId() != orgId) {
+            throw new BadRequestException("Role does not belong to this organization");
+        }
+
         OrganizationUser orgUser = organizationUserRepository.findByUserIdAndOrganizationId(user.getId(), orgId)
                 .orElse(new OrganizationUser());
                 
@@ -217,6 +264,7 @@ public class OrganizationService {
     public void updateUserShift(String orgSlug, UUID userId, UserShiftDto shiftDto) {
         Organization org = organizationRepository.findBySlug(orgSlug)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+        tenantAccessService.requireTenant(org.getId());
 
         OrganizationUser orgUser = organizationUserRepository.findByUserIdAndOrganizationId(userId, org.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found in organization"));

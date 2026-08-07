@@ -3,6 +3,7 @@ package com.koda.levi.controller;
 import com.koda.levi.dto.WorkflowStateDto;
 import com.koda.levi.entity.WorkflowState;
 import com.koda.levi.service.WorkflowStateService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,7 +18,7 @@ public class WorkflowStateController {
     private final WorkflowStateService workflowStateService;
 
     @PostMapping
-    public ResponseEntity<WorkflowState> createWorkflowState(@RequestBody WorkflowStateDto workflowStateDto) {
+    public ResponseEntity<WorkflowState> createWorkflowState(@Valid @RequestBody WorkflowStateDto workflowStateDto) {
         return ResponseEntity.ok(workflowStateService.create(workflowStateDto));
     }
 
