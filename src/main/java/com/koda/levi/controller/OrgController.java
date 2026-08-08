@@ -60,11 +60,13 @@ public class OrgController {
     }
     
     @GetMapping("/{orgId}/members/pending")
+    @PreAuthorize("hasAuthority('ORG_ADMIN')")
     public ResponseEntity<List<OrganizationUser>> getPendingMembers(@PathVariable Long orgId) {
         return ResponseEntity.ok(organizationService.getPendingMembers(orgId));
     }
-    
+
     @GetMapping("/{orgId}/members/active")
+    @PreAuthorize("hasAuthority('ORG_ADMIN')")
     public ResponseEntity<List<OrganizationUser>> getActiveMembers(@PathVariable Long orgId) {
         return ResponseEntity.ok(organizationService.getActiveMembers(orgId));
     }
@@ -95,6 +97,7 @@ public class OrgController {
     }
 
     @GetMapping("/{orgId}/roles")
+    @PreAuthorize("hasAuthority('ORG_ADMIN')")
     public ResponseEntity<List<Role>> getRoles(@PathVariable Long orgId) {
         return ResponseEntity.ok(organizationService.getRoles(orgId));
     }

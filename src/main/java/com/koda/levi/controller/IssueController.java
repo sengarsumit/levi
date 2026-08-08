@@ -23,6 +23,7 @@ public class IssueController {
     private final IssueService issueService;
 
     @PostMapping
+    @PreAuthorize("hasAuthority('ISSUE_CREATE')")
     public ResponseEntity<Issue> createIssue(@Valid @RequestBody IssueDto issueDto) {
         return ResponseEntity.ok(issueService.createIssue(issueDto));
     }
@@ -92,11 +93,13 @@ public class IssueController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('ISSUE_UPDATE')")
     public ResponseEntity<Issue> updateIssue(@PathVariable Integer id, @Valid @RequestBody IssueDto issueDto) {
         return ResponseEntity.ok(issueService.updateIssue(id, issueDto));
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ISSUE_DELETE')")
     public ResponseEntity<Void> deleteIssue(@PathVariable Integer id) {
         issueService.deleteIssue(id);
         return ResponseEntity.noContent().build();

@@ -1,15 +1,23 @@
 package com.koda.levi.tenancy;
 
 import com.koda.levi.config.JwtService;
+import com.koda.levi.entity.OrganizationUser;
 import com.koda.levi.entity.OrgUserStatus;
 import com.koda.levi.repository.OrganizationUserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -44,11 +52,13 @@ public class TenantContextInterceptor implements HandlerInterceptor {
         Optional<Long> tenantId = headerTenantId.or(() -> jwtTenantId);
 
         if (tenantId.isPresent()) {
-            if (!isApprovedMember(request, tenantId.get())) {
+            OrganizationUser membership = resolveApprovedMembership(request, tenantId.get());
+            if (membership == null) {
                 writeError(response, HttpServletResponse.SC_FORBIDDEN, "Not an approved member of this organization");
                 return false;
             }
             TenantContext.setTenantId(tenantId.get());
+            refreshAuthoritiesForMembership(membership);
             return true;
         }
 
@@ -105,20 +115,55 @@ public class TenantContextInterceptor implements HandlerInterceptor {
      * trustworthy if the caller is actually an approved member of that org — otherwise a
      * plain header, or a stale claim from before removal, would grant access on its own.
      */
-    private boolean isApprovedMember(HttpServletRequest request, Long tenantId) {
+    private OrganizationUser resolveApprovedMembership(HttpServletRequest request, Long tenantId) {
         String authHeader = request.getHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return false;
+            return null;
         }
 
         Optional<UUID> userId = jwtService.extractUserId(authHeader.substring(7));
         if (userId.isEmpty()) {
-            return false;
+            return null;
         }
 
-        return organizationUserRepository.findByUserIdAndOrganizationId(userId.get(), tenantId)
-                .map(orgUser -> orgUser.getStatus() == OrgUserStatus.APPROVED)
-                .orElse(false);
+        // Fetch-join variant, not the plain lookup: this interceptor runs before Spring's
+        // open-in-view session is established for the request, so a plain lazy fetch of
+        // membership.role throws LazyInitializationException ("no Session") the moment
+        // refreshAuthoritiesForMembership touches it. Loading role as a real entity in this
+        // same query avoids ever needing a later lazy load at all.
+        return organizationUserRepository.findByUserIdAndOrganizationIdFetchAll(userId.get(), tenantId)
+                .filter(orgUser -> orgUser.getStatus() == OrgUserStatus.APPROVED)
+                .orElse(null);
+    }
+
+    /**
+     * The JWT's "permissions" claim is a snapshot taken at login time — and only populated
+     * at all when logging in via the org-scoped /login/:orgSlug route — that never changes
+     * for the life of the token. Switching orgs via the workspace switcher, being promoted
+     * to Admin mid-session, or just logging in generically all leave it stale or empty, which
+     * makes every @PreAuthorize(hasAuthority(...)) check fail for people who are genuinely
+     * authorized. Re-deriving authorities from the database on every tenant-scoped request
+     * (the same place tenant membership itself is already re-verified live) means those
+     * checks always reflect the caller's actual current role for whichever org they're
+     * acting on right now, regardless of what their token happened to capture at login.
+     */
+    private void refreshAuthoritiesForMembership(OrganizationUser membership) {
+        Authentication current = SecurityContextHolder.getContext().getAuthentication();
+        if (current == null) {
+            return;
+        }
+
+        List<GrantedAuthority> authorities = new ArrayList<>();
+        authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+        if (membership.getRole() != null && membership.getRole().getPermissions() != null) {
+            for (String permission : membership.getRole().getPermissions()) {
+                authorities.add(new SimpleGrantedAuthority(permission));
+            }
+        }
+
+        Authentication refreshed = new UsernamePasswordAuthenticationToken(
+                current.getPrincipal(), current.getCredentials(), authorities);
+        SecurityContextHolder.getContext().setAuthentication(refreshed);
     }
 
     private boolean isAuthRoute(HttpServletRequest request) {
