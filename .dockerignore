@@ -1,0 +1,17 @@
+.git
+.idea
+.vscode
+target/
+
+# Local-only config containing dev secrets (MySQL password, JWT secret) — must
+# never be baked into an image layer. The docker image uses application-docker.yaml
+# instead, which is git-tracked and contains only env-var placeholders.
+src/main/resources/application.yaml
+
+*.md
+!README.md
+docker-compose.yml
+update_postman.py
+mvnw.cmd
+Dockerfile
+.dockerignore

@@ -1,0 +1,25 @@
+services:
+  - name: levi-backend
+    type: web
+    runtime: docker
+    plan: free
+    region: oregon
+    branch: master
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /auth/health
+    envVars:
+      # Aiven (or any) MySQL connection details — see DEPLOYMENT.md for how
+      # to build the JDBC URL from Aiven's connection info.
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      # Generate with: openssl rand -hex 32
+      - key: APP_JWT_SECRET
+        sync: false
+      # The deployed frontend's origin(s), comma-separated, no trailing slash.
+      # e.g. https://levi-frontend.vercel.app
+      - key: APP_CORS_ALLOWED_ORIGINS
+        sync: false

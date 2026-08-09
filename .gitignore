@@ -36,6 +36,7 @@ build/
 ### Markdown & Postman ###
 *.md
 !README.md
+!DEPLOYMENT.md
 *postman_collection.json
 *postman_test_run.json
 *postman_environment.json
