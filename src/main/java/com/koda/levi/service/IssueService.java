@@ -5,6 +5,7 @@ import com.koda.levi.entity.Board;
 import com.koda.levi.entity.Issue;
 import com.koda.levi.entity.Project;
 import com.koda.levi.entity.Sprint;
+import com.koda.levi.entity.Users;
 import com.koda.levi.entity.WorkflowState;
 import com.koda.levi.exception.BadRequestException;
 import com.koda.levi.exception.ResourceNotFoundException;
@@ -17,13 +18,14 @@ import com.koda.levi.repository.SprintRepository;
 import com.koda.levi.repository.WorkflowStateRepository;
 import com.koda.levi.tenancy.TenantAccessService;
 import com.koda.levi.entity.OrganizationUser;
-import com.koda.levi.tenancy.TenantAccessService;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -47,6 +49,58 @@ public class IssueService {
     private final IssueTimeCalculatorService timeCalculatorService;
     private final OrganizationUserRepository organizationUserRepository;
 
+    // TenantContextInterceptor already replaces SecurityContextHolder's Authentication with
+    // one carrying live, DB-fresh authorities (and the real Users entity as principal) for
+    // the resolved tenant before any controller/service code runs — reading it here follows
+    // the same static-accessor style TenantContext.getTenantId() already uses throughout
+    // this class, rather than threading caller identity through every method signature.
+    private Users currentUser() {
+        return (Users) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+    }
+
+    private boolean callerHasAuthority(String authority) {
+        return SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals(authority));
+    }
+
+    private boolean callerIsAdmin() {
+        return callerHasAuthority("ORG_ADMIN");
+    }
+
+    private boolean callerCanAssign() {
+        return callerIsAdmin() || callerHasAuthority("ISSUE_ASSIGN");
+    }
+
+    /** Admins see everything; everyone else sees unassigned issues plus their own. */
+    private List<Issue> applyVisibility(List<Issue> issues) {
+        if (callerIsAdmin()) {
+            return issues;
+        }
+        UUID callerId = currentUser().getId();
+        return issues.stream()
+                .filter(i -> i.getAssignedTo() == null || i.getAssignedTo().equals(callerId))
+                .toList();
+    }
+
+    public Issue assignIssue(Integer id, UUID assignedTo) {
+        Long tenantId = tenantAccessService.requireTenantId();
+        Issue issue = getIssueById(id);
+
+        if (assignedTo != null) {
+            organizationUserRepository.findByUserIdAndOrganizationId(assignedTo, tenantId)
+                    .orElseThrow(() -> new BadRequestException("assignedTo must be an approved member of this organization"));
+        }
+
+        issue.setAssignedTo(assignedTo);
+        issue.setAssignedBy(currentUser().getId());
+        issue.setUpdatedAt(LocalDateTime.now());
+        Issue saved = issueRepository.save(issue);
+        eventPublisher.publishEvent(new com.koda.levi.event.IssueUpdatedEvent(
+            this, saved, "ASSIGNED", saved.getProject().getId()
+        ));
+        return saved;
+    }
+
     public Issue createIssue(IssueDto issueDto) {
         Long tenantId = tenantAccessService.requireTenantId();
         Project project = projectRepository.findByIdAndOrganizationId(issueDto.getProjectId(), tenantId)
@@ -58,8 +112,14 @@ public class IssueService {
         issue.setDescription(issueDto.getDescription());
         issue.setStatus(issueDto.getStatus() != null ? issueDto.getStatus() : 0);
         issue.setIssueType(issueType);
-        issue.setAssignedTo(issueDto.getAssignedTo());
-        issue.setAssignedBy(issueDto.getAssignedBy());
+        // Only honor a caller-supplied assignee if they're actually allowed to assign —
+        // otherwise silently create the issue unassigned rather than failing the whole
+        // creation over a stray/forged field. Assignment changes on an existing issue only
+        // happen through assignIssue()/PATCH /issues/{id}/assign, gated the same way.
+        if (issueDto.getAssignedTo() != null && callerCanAssign()) {
+            issue.setAssignedTo(issueDto.getAssignedTo());
+            issue.setAssignedBy(currentUser().getId());
+        }
         issue.setProject(project);
         issue.setOrganization(project.getOrganization());
 
@@ -101,12 +161,19 @@ public class IssueService {
 
     public Issue getIssueById(Integer id) {
         Long tenantId = tenantAccessService.requireTenantId();
-        return issueRepository.findByIdAndOrganizationId(id, tenantId)
+        Issue issue = issueRepository.findByIdAndOrganizationId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Issue not found with id: " + id));
+        // 404 rather than 403 for an issue that exists but isn't visible to this caller —
+        // matches TenantAccessService.requireTenant's existing convention of not confirming
+        // a resource's existence to someone who shouldn't see it.
+        if (!callerIsAdmin() && issue.getAssignedTo() != null && !issue.getAssignedTo().equals(currentUser().getId())) {
+            throw new ResourceNotFoundException("Issue not found with id: " + id);
+        }
+        return issue;
     }
 
     public List<Issue> getAllIssues() {
-        return issueRepository.findByOrganizationId(tenantAccessService.requireTenantId());
+        return applyVisibility(issueRepository.findByOrganizationId(tenantAccessService.requireTenantId()));
     }
 
     public List<Issue> getIssueByOrganisation(long organizationId) {
@@ -114,7 +181,7 @@ public class IssueService {
         if (!organizationRepository.existsById(organizationId)) {
             throw new ResourceNotFoundException("Organization not found with id: " + organizationId);
         }
-        return issueRepository.findByProject_Organization_Id(organizationId);
+        return applyVisibility(issueRepository.findByProject_Organization_Id(organizationId));
     }
 
     public List<Issue> getIssuesByProjectId(Long projectId) {
@@ -122,7 +189,7 @@ public class IssueService {
         if (projectRepository.findByIdAndOrganizationId(projectId, tenantId).isEmpty()) {
             throw new ResourceNotFoundException("Project not found with id: " + projectId);
         }
-        return issueRepository.findByProjectIdAndOrganizationId(projectId, tenantId);
+        return applyVisibility(issueRepository.findByProjectIdAndOrganizationId(projectId, tenantId));
     }
 
     public List<Issue> getBacklogIssuesByProject(Long projectId) {
@@ -130,25 +197,34 @@ public class IssueService {
         if (projectRepository.findByIdAndOrganizationId(projectId, tenantId).isEmpty()) {
             throw new ResourceNotFoundException("Project not found with id: " + projectId);
         }
-        return issueRepository.findByProjectIdAndSprintIsNullAndOrganizationId(projectId, tenantId);
+        return applyVisibility(issueRepository.findByProjectIdAndSprintIsNullAndOrganizationId(projectId, tenantId));
     }
 
     public List<Issue> getIssuesByAssignedUser(UUID userId) {
+        // Different shape of guard than applyVisibility: the whole point of this endpoint is
+        // "show me X's issues", and within a tenant everyone already knows other members
+        // exist, so there's no existence-hiding benefit to a 404 here — a plain 403 is more
+        // honest than pretending the concept of "another user's issues" doesn't exist.
+        if (!callerIsAdmin() && !userId.equals(currentUser().getId())) {
+            throw new AccessDeniedException("Cannot view another user's assigned issues");
+        }
         return issueRepository.findByAssignedToAndOrganizationId(userId, tenantAccessService.requireTenantId());
     }
 
     public List<Issue> getIssuesByWorkflowState(Long workflowStateId) {
         Long tenantId = tenantAccessService.requireTenantId();
-        return issueRepository.findByWorkflowStateIdAndOrganizationId(workflowStateId, tenantId);
+        return applyVisibility(issueRepository.findByWorkflowStateIdAndOrganizationId(workflowStateId, tenantId));
     }
 
     public List<Issue> getIssuesByBoard(Long boardId) {
         Long tenantId = tenantAccessService.requireTenantId();
-        return issueRepository.findByBoardIdAndOrganizationId(boardId, tenantId);
+        return applyVisibility(issueRepository.findByBoardIdAndOrganizationId(boardId, tenantId));
     }
 
     public Page<Issue> getIssuesWithFilters(Integer status, UUID assignee, Pageable pageable) {
         Long tenantId = tenantAccessService.requireTenantId();
+        boolean isAdmin = callerIsAdmin();
+        UUID callerId = currentUser().getId();
         return issueRepository.findAll((Specification<Issue>) (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(criteriaBuilder.equal(root.get("organization").get("id"), tenantId));
@@ -158,7 +234,19 @@ public class IssueService {
             }
 
             if (assignee != null) {
-                predicates.add(criteriaBuilder.equal(root.get("assignedTo"), assignee));
+                // A non-admin asking for someone else's assigned issues would otherwise be a
+                // second bypass route around applyVisibility's filtering — fold it into the
+                // caller's own visibility predicate instead of ever honoring it verbatim.
+                if (!isAdmin && !assignee.equals(callerId)) {
+                    predicates.add(criteriaBuilder.disjunction()); // no rows
+                } else {
+                    predicates.add(criteriaBuilder.equal(root.get("assignedTo"), assignee));
+                }
+            } else if (!isAdmin) {
+                predicates.add(criteriaBuilder.or(
+                        criteriaBuilder.equal(root.get("assignedTo"), callerId),
+                        criteriaBuilder.isNull(root.get("assignedTo"))
+                ));
             }
 
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
@@ -233,8 +321,10 @@ public class IssueService {
         issue.setDescription(issueDto.getDescription());
         issue.setStatus(issueDto.getStatus() != null ? issueDto.getStatus() : issue.getStatus());
         issue.setIssueType(normalizeIssueType(issueDto.getIssueType()));
-        issue.setAssignedTo(issueDto.getAssignedTo() != null ? issueDto.getAssignedTo() : issue.getAssignedTo());
-        issue.setAssignedBy(issueDto.getAssignedBy() != null ? issueDto.getAssignedBy() : issue.getAssignedBy());
+        // assignedTo/assignedBy are deliberately never touched here — assignment is the
+        // exclusive job of assignIssue()/PATCH /issues/{id}/assign, gated by ISSUE_ASSIGN.
+        // ISSUE_UPDATE (this endpoint) is a default permission every member has; letting it
+        // also set assignedTo would make that gate meaningless.
         issue.setProject(project);
         issue.setOrganization(project.getOrganization());
 

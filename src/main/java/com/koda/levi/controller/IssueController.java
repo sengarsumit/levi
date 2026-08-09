@@ -1,5 +1,6 @@
 package com.koda.levi.controller;
 
+import com.koda.levi.dto.AssignIssueRequest;
 import com.koda.levi.dto.IssueDto;
 import com.koda.levi.entity.Issue;
 import com.koda.levi.service.IssueService;
@@ -96,6 +97,12 @@ public class IssueController {
     @PreAuthorize("hasAuthority('ISSUE_UPDATE')")
     public ResponseEntity<Issue> updateIssue(@PathVariable Integer id, @Valid @RequestBody IssueDto issueDto) {
         return ResponseEntity.ok(issueService.updateIssue(id, issueDto));
+    }
+
+    @PatchMapping("/{id}/assign")
+    @PreAuthorize("hasAuthority('ISSUE_ASSIGN') or hasAuthority('ORG_ADMIN')")
+    public ResponseEntity<Issue> assignIssue(@PathVariable Integer id, @RequestBody AssignIssueRequest request) {
+        return ResponseEntity.ok(issueService.assignIssue(id, request.getAssignedTo()));
     }
 
     @DeleteMapping("/{id}")
