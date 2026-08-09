@@ -53,15 +53,7 @@ DB to necessarily still be running months later untouched.
 
 ## Part 2 — push these files
 
-```bash
-cd levi
-git add Dockerfile .dockerignore render.yaml DEPLOYMENT.md .gitignore src/main/java/com/koda/levi/config/SecurityConfig.java src/main/resources/application-docker.yaml
-git status
-```
-
-Check the status output — it should **not** show
-`src/main/resources/application.yaml`. Then commit and push when you're ready
-(let me know if you'd like me to do this part).
+Done — committed (`a9d1387`) and pushed to `origin/master`.
 
 ## Part 3 — Render Blueprint
 
@@ -75,7 +67,7 @@ Check the status output — it should **not** show
    | `SPRING_DATASOURCE_USERNAME` | Aiven's User (e.g. `avnadmin`) |
    | `SPRING_DATASOURCE_PASSWORD` | Aiven's Password |
    | `APP_JWT_SECRET` | a random 64-char hex string — see below |
-   | `APP_CORS_ALLOWED_ORIGINS` | your deployed frontend's origin (see Part 4 — a placeholder is fine for now, you can edit it later without redeploying code) |
+   | `APP_CORS_ALLOWED_ORIGINS` | your Netlify site's URL, e.g. `https://<your-site>.netlify.app` (see Part 4 — a placeholder is fine for now, you can edit it later without redeploying code) |
 
    Generate `APP_JWT_SECRET`:
    ```bash
@@ -97,31 +89,14 @@ Check the status output — it should **not** show
 minutes of no traffic and take ~30-60s to wake back up on the next request.
 The first request after idle time will just look slow, not broken.
 
-## Part 4 — connecting the frontend (not done yet)
+## Part 4 — connecting the frontend
 
-This part wasn't in scope for what you asked, but it's the missing link for
-an end-to-end deploy, so flagging it now rather than leaving it silently
-broken: `levi-frontend` currently calls relative paths like `/api/boards`
-with no configured base URL — that only resolves correctly today because
-Vite's dev proxy rewrites `/api/*` to `localhost:8080` and strips the prefix
-(`vite.config.ts`). A production build has no such proxy, so once deployed
-standalone it would call `/api/boards` against its **own** domain and get
-nothing back — this is independent of CORS being configured correctly above.
-
-Two ways to close that gap, depending on where you host the frontend:
-- **Host-level rewrite** (no frontend code changes): most static hosts
-  (Vercel, Netlify, Cloudflare Pages) support a rewrite rule forwarding
-  `/api/*` → `https://<your-render-service>.onrender.com/*` (stripping the
-  prefix), i.e. exactly what the Vite dev proxy already does. One new config
-  file in `levi-frontend/`, nothing else touched.
-- **Env-driven base URL**: point `baseApi.ts` at the Render URL directly via
-  a build-time env var, with a matching change to how request paths are built
-  (a plain `baseUrl` swap alone isn't enough, since the backend's real routes
-  don't have an `/api` prefix — `fetchBaseQuery` doesn't rewrite paths the way
-  the dev proxy does).
-
-Tell me which static host you want for the frontend and I'll wire up the
-first option — it's the smaller, lower-risk change of the two.
+Handled via a Netlify redirect proxy rather than a frontend code change —
+see `levi-frontend/DEPLOYMENT.md` for the full steps. Short version: its
+`netlify.toml` forwards `/api/*` and `/ws-levi/*` to this Render service
+(mirroring what `vite.config.ts`'s dev proxy already does locally), and once
+the Netlify site is live you come back here and set `APP_CORS_ALLOWED_ORIGINS`
+to its real URL.
 
 ## Rollback / local dev impact
 
