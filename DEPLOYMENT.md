@@ -80,14 +80,43 @@ Done — committed (`a9d1387`) and pushed to `origin/master`.
 4. **Apply** to build and deploy. First build takes a few minutes (downloads
    the JDK base images, runs the Maven build). Watch the logs for the app
    actually starting — first boot will also run Hibernate's `ddl-auto: update`,
-   creating all tables on the empty Aiven database automatically. No manual
-   migration step needed.
+   creating all tables on the empty Aiven database automatically.
 5. Once live, confirm: `https://<your-service>.onrender.com/auth/health` →
    `{"status":"UP"}`.
 
 **Free-tier cold starts**: Render's free web services spin down after 15
 minutes of no traffic and take ~30-60s to wake back up on the next request.
-The first request after idle time will just look slow, not broken.
+The first request after idle time will just look slow, not broken. If a
+request is in flight during that wakeup, it can also hit Netlify's 26s proxy
+timeout and come back as a 504 — the app isn't actually broken, just retry
+once it's had time to finish booting.
+
+**Known issue: `ddl-auto: update` can silently skip a table on a truly empty
+database.** This bit us on first deploy: `POST /organization` (creating a
+workspace) failed with a 500, and Render's logs showed
+`Table 'defaultdb.role_permissions' doesn't exist`. `role_permissions` is the
+`@ElementCollection` table backing `Role.permissions` (see `Role.java`) —
+Hibernate's schema-update batch tried to create it (it references `roles`,
+which has to exist first) and that one statement failed silently while
+everything else succeeded, so the app booted "healthy" with one table quietly
+missing. There's no migration tool in this project (no Flyway/Liquibase), so
+if this ever happens again on a fresh database, the fix is to create it by
+hand in Aiven's console (**Query** tab, make sure `defaultdb` is selected
+first — `USE defaultdb;` — Aiven also requires every table to have a primary
+key, which Hibernate's auto-generated collection tables don't normally have):
+   ```sql
+   USE defaultdb;
+   CREATE TABLE role_permissions (
+       role_id BIGINT NOT NULL,
+       permission VARCHAR(255) NOT NULL,
+       PRIMARY KEY (role_id, permission),
+       CONSTRAINT fk_role_permissions_role FOREIGN KEY (role_id) REFERENCES roles (id)
+   );
+   ```
+   No app restart needed — it picks up the table on the next query. If some
+   *other* table ever turns up missing instead, the fix is the same idea:
+   check the entity's `@Table`/`@Column` annotations and hand-write the
+   matching `CREATE TABLE`.
 
 ## Part 4 — connecting the frontend
 
