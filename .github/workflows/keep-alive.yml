@@ -1,0 +1,26 @@
+name: Keep backend awake
+
+# Render's free web service sleeps after ~15 min with no incoming HTTP traffic,
+# and the Aiven MySQL it talks to separately auto-pauses after its own stretch
+# of no queries (see DEPLOYMENT.md). Neither can be kept awake from *inside*
+# the app alone -- Render only counts external requests as activity -- so this
+# pings the public health endpoint from outside on a schedule.
+#
+# GitHub doesn't guarantee scheduled workflows fire exactly on time (they can
+# slip by a few minutes under load), so this runs every 10 minutes to leave
+# margin under Render's ~15 minute threshold. It also auto-disables if this
+# repo goes 60 days with no commits (a GitHub Actions platform behavior, not
+# something configured here) -- re-enable it from the Actions tab if that
+# happens on a quiet repo.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping health endpoint
+        run: curl -sS -o /dev/null -w "status: %{http_code}\n" https://levi-ued5.onrender.com/auth/health
