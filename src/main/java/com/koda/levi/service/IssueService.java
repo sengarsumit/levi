@@ -275,8 +275,16 @@ public class IssueService {
         }
         
         String wsName = ws.getName().trim();
-        if (wsName.equalsIgnoreCase("In Progress") && issue.getStartedAt() == null) {
+        if (wsName.equalsIgnoreCase("In Progress")) {
+            // Entering "In Progress" always (re)starts the clock, including when
+            // reopening an issue that was previously "Done" — otherwise the stale
+            // startedAt/timeTakenHours from the earlier completion would survive and
+            // inflate the next elapsed-time calculation by however long the issue sat
+            // "Done" in between. This mirrors the same anti-inflation intent as the
+            // else branch below, just applied to the reopen case too.
             issue.setStartedAt(LocalDateTime.now());
+            issue.setCompletedAt(null);
+            issue.setTimeTakenHours(null);
         } else if (wsName.equalsIgnoreCase("Done")) {
             issue.setCompletedAt(LocalDateTime.now());
             if (issue.getStartedAt() != null && issue.getAssignedTo() != null) {
