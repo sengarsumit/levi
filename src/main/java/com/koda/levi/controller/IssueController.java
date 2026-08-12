@@ -2,8 +2,10 @@ package com.koda.levi.controller;
 
 import com.koda.levi.dto.AssignIssueRequest;
 import com.koda.levi.dto.IssueDto;
+import com.koda.levi.dto.ProductivityStatsDto;
 import com.koda.levi.entity.Issue;
 import com.koda.levi.service.IssueService;
+import com.koda.levi.service.ProductivityService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -22,6 +24,7 @@ import java.util.UUID;
 public class IssueController {
 
     private final IssueService issueService;
+    private final ProductivityService productivityService;
 
     @PostMapping
     @PreAuthorize("hasAuthority('ISSUE_CREATE')")
@@ -60,6 +63,11 @@ public class IssueController {
     @GetMapping("/project/{projectId}/backlog")
     public ResponseEntity<List<Issue>> getBacklogIssuesByProject(@PathVariable Long projectId) {
         return ResponseEntity.ok(issueService.getBacklogIssuesByProject(projectId));
+    }
+
+    @GetMapping("/project/{projectId}/productivity")
+    public ResponseEntity<ProductivityStatsDto> getProjectProductivity(@PathVariable Long projectId) {
+        return ResponseEntity.ok(productivityService.getProjectProductivity(projectId));
     }
 
     @GetMapping("/board/{boardId}")
