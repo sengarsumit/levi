@@ -1,6 +1,8 @@
 package com.koda.levi.controller;
 
+import com.koda.levi.dto.JoinOrganizationRequest;
 import com.koda.levi.dto.OrganizationDto;
+import com.koda.levi.dto.RoleSummaryDto;
 import com.koda.levi.entity.Organization;
 import com.koda.levi.service.OrganizationService;
 import lombok.RequiredArgsConstructor;
@@ -54,11 +56,20 @@ public class OrgController {
     }
     
     @PostMapping("/{orgSlug}/join")
-    public ResponseEntity<Void> joinOrganization(@PathVariable String orgSlug, @AuthenticationPrincipal Users user) {
-        organizationService.joinOrganization(orgSlug, user.getId());
+    public ResponseEntity<Void> joinOrganization(
+            @PathVariable String orgSlug,
+            @RequestBody(required = false) JoinOrganizationRequest request,
+            @AuthenticationPrincipal Users user) {
+        Long preferredRoleId = request != null ? request.getPreferredRoleId() : null;
+        organizationService.joinOrganization(orgSlug, user.getId(), preferredRoleId);
         return ResponseEntity.ok().build();
     }
-    
+
+    @GetMapping("/{orgSlug}/join/roles")
+    public ResponseEntity<List<RoleSummaryDto>> getJoinRoles(@PathVariable String orgSlug) {
+        return ResponseEntity.ok(organizationService.getRolesForJoin(orgSlug));
+    }
+
     @GetMapping("/{orgId}/members/pending")
     @PreAuthorize("hasAuthority('ORG_ADMIN')")
     public ResponseEntity<List<OrganizationUser>> getPendingMembers(@PathVariable Long orgId) {

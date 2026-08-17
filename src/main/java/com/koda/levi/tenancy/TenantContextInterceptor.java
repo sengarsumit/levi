@@ -176,6 +176,9 @@ public class TenantContextInterceptor implements HandlerInterceptor {
         if (uri.startsWith("/organization") && uri.endsWith("/join")) {
             return true; // Allow join requests without tenant header
         }
+        if ("GET".equalsIgnoreCase(method) && uri.startsWith("/organization") && uri.endsWith("/join/roles")) {
+            return true; // Allow a prospective (non-member) joiner to browse role names to request
+        }
         return ("POST".equalsIgnoreCase(method) || "GET".equalsIgnoreCase(method)) && "/organization".equals(uri);
     }
 

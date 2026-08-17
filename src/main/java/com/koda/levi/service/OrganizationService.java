@@ -1,6 +1,7 @@
 package com.koda.levi.service;
 
 import com.koda.levi.dto.OrganizationDto;
+import com.koda.levi.dto.RoleSummaryDto;
 import com.koda.levi.entity.Organization;
 import com.koda.levi.exception.BadRequestException;
 import com.koda.levi.exception.ResourceNotFoundException;
@@ -159,7 +160,7 @@ public class OrganizationService {
         organizationRepository.delete(org);
     }
     
-    public void joinOrganization(String orgSlug, UUID userId) {
+    public void joinOrganization(String orgSlug, UUID userId, Long preferredRoleId) {
         Organization org = organizationRepository.findBySlug(orgSlug)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
@@ -172,21 +173,38 @@ public class OrganizationService {
 
         // role_id is NOT NULL in the database even though the entity marks it nullable, so a
         // pending request needs a real role from the start. The approving admin picks/confirms
-        // the actual role anyway (approveMember always overwrites this), so a sensible default
-        // — the org's "User" role — is just a placeholder until then, not a real grant.
+        // the actual role anyway (approveMember always overwrites this), so this placeholder —
+        // the requester's preference if they gave one, else the org's "User" role — is a
+        // signal for the admin, not a real grant.
         List<Role> orgRoles = roleRepository.findByOrganization(org);
-        Role defaultRole = orgRoles.stream()
-                .filter(r -> "User".equals(r.getName()))
-                .findFirst()
-                .orElseGet(() -> orgRoles.stream().findFirst()
-                        .orElseThrow(() -> new ResourceNotFoundException("Organization has no roles configured")));
+        Role placeholderRole;
+        if (preferredRoleId != null) {
+            placeholderRole = orgRoles.stream()
+                    .filter(r -> r.getId().equals(preferredRoleId))
+                    .findFirst()
+                    .orElseThrow(() -> new BadRequestException("Preferred role does not belong to this organization"));
+        } else {
+            placeholderRole = orgRoles.stream()
+                    .filter(r -> "User".equals(r.getName()))
+                    .findFirst()
+                    .orElseGet(() -> orgRoles.stream().findFirst()
+                            .orElseThrow(() -> new ResourceNotFoundException("Organization has no roles configured")));
+        }
 
         OrganizationUser orgUser = new OrganizationUser();
         orgUser.setOrganization(org);
         orgUser.setUser(user);
-        orgUser.setRole(defaultRole);
+        orgUser.setRole(placeholderRole);
         orgUser.setStatus(OrgUserStatus.PENDING);
         organizationUserRepository.save(orgUser);
+    }
+
+    public List<RoleSummaryDto> getRolesForJoin(String orgSlug) {
+        Organization org = organizationRepository.findBySlug(orgSlug)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+        return roleRepository.findByOrganization(org).stream()
+                .map(r -> RoleSummaryDto.builder().id(r.getId()).name(r.getName()).build())
+                .toList();
     }
     
     public List<OrganizationUser> getPendingMembers(Long orgId) {
