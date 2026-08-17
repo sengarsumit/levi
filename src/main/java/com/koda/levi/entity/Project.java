@@ -57,6 +57,10 @@ public class Project {
     @JsonIgnore
     private List<Issue> issue;
 
+    @OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private List<ProjectMember> projectMembers;
+
     @ManyToOne
     @JoinColumn(name = "organization_id", nullable = false)
     @JsonIgnore
