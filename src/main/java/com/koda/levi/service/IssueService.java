@@ -48,6 +48,7 @@ public class IssueService {
     private final ApplicationEventPublisher eventPublisher;
     private final IssueTimeCalculatorService timeCalculatorService;
     private final OrganizationUserRepository organizationUserRepository;
+    private final ProjectAccessService projectAccessService;
 
     // TenantContextInterceptor already replaces SecurityContextHolder's Authentication with
     // one carrying live, DB-fresh authorities (and the real Users entity as principal) for
@@ -189,6 +190,7 @@ public class IssueService {
         if (projectRepository.findByIdAndOrganizationId(projectId, tenantId).isEmpty()) {
             throw new ResourceNotFoundException("Project not found with id: " + projectId);
         }
+        projectAccessService.requireProjectAccess(projectId);
         return applyVisibility(issueRepository.findByProjectIdAndOrganizationId(projectId, tenantId));
     }
 
@@ -197,6 +199,7 @@ public class IssueService {
         if (projectRepository.findByIdAndOrganizationId(projectId, tenantId).isEmpty()) {
             throw new ResourceNotFoundException("Project not found with id: " + projectId);
         }
+        projectAccessService.requireProjectAccess(projectId);
         return applyVisibility(issueRepository.findByProjectIdAndSprintIsNullAndOrganizationId(projectId, tenantId));
     }
 

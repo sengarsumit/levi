@@ -27,6 +27,7 @@ public class ProductivityService {
     private final IssueRepository issueRepository;
     private final ProjectRepository projectRepository;
     private final TenantAccessService tenantAccessService;
+    private final ProjectAccessService projectAccessService;
 
     private Users currentUser() {
         return (Users) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -41,6 +42,7 @@ public class ProductivityService {
         Long tenantId = tenantAccessService.requireTenantId();
         projectRepository.findByIdAndOrganizationId(projectId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + projectId));
+        projectAccessService.requireProjectAccess(projectId);
 
         // Deliberately NOT filtered through IssueService.applyVisibility() here — that hides
         // other people's issues from a *list* view, but every issue should still contribute to

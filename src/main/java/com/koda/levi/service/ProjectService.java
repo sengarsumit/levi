@@ -3,6 +3,7 @@ package com.koda.levi.service;
 import com.koda.levi.dto.ProjectDto;
 import com.koda.levi.entity.Organization;
 import com.koda.levi.entity.Project;
+import com.koda.levi.entity.Users;
 import com.koda.levi.exception.BadRequestException;
 import com.koda.levi.exception.ResourceNotFoundException;
 import com.koda.levi.repository.OrganizationRepository;
@@ -11,10 +12,12 @@ import com.koda.levi.tenancy.TenantAccessService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +26,11 @@ public class ProjectService {
     private final ProjectRepository projectRepository;
     private final OrganizationRepository organizationRepository;
     private final TenantAccessService tenantAccessService;
+    private final ProjectMemberService projectMemberService;
+
+    private UUID currentUserId() {
+        return ((Users) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getId();
+    }
 
     @CacheEvict(value = {"projects", "organizationProjects"}, allEntries = true)
     public Project create(ProjectDto projectDto) {
@@ -57,12 +65,17 @@ public class ProjectService {
         }
         
         project.setDeadline(projectDto.getDeadline());
-        project.setCreatedBy(projectDto.getCreatedBy());
+        // createdBy is taken from the authenticated caller, never the client-supplied DTO
+        // field (which is spoofable) — this is also who gets auto-enrolled as a member below.
+        UUID creatorId = currentUserId();
+        project.setCreatedBy(creatorId);
         project.setOrganization(org);
         project.setCreatedAt(LocalDateTime.now());
         project.setUpdatedAt(LocalDateTime.now());
-        
-        return projectRepository.save(project);
+
+        Project saved = projectRepository.save(project);
+        projectMemberService.addMemberInternal(saved, creatorId);
+        return saved;
     }
 
     @Cacheable(value = "projects", key = "T(com.koda.levi.tenancy.TenantContext).getTenantId() + '-' + #id")
